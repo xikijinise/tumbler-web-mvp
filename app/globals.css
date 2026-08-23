@@ -264,8 +264,6 @@ kbd {
 
 .speech-bubble {
   position: absolute;
-  bottom: 14%;
-  left: 50%;
   z-index: 7;
   max-width: min(300px, 42vw);
   border: 1px solid rgba(37, 42, 39, 0.16);
@@ -278,7 +276,15 @@ kbd {
   padding: 7px 13px;
   pointer-events: none;
   text-align: center;
-  transform: translateX(-50%);
+  animation: speech-pop 220ms ease-out both;
+}
+
+.speech-left {
+  transform: translate(0, -50%);
+}
+
+.speech-right {
+  transform: translate(-100%, -50%);
 }
 
 .drag-caption {
@@ -857,6 +863,18 @@ kbd {
   }
 }
 
+@keyframes speech-pop {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 @media (max-width: 820px) {
   .experiment-shell {
     padding: 0;
@@ -1043,7 +1061,6 @@ kbd {
   }
 
   .speech-bubble {
-    bottom: 10%;
     max-width: 58vw;
     font-size: 10px;
     padding: 6px 9px;

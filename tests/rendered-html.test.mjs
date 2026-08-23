@@ -78,6 +78,9 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /recordInput/);
   assert.match(page, /corner-footer/);
   assert.match(page, /speechText/);
+  assert.match(page, /speechPosition/);
+  assert.match(page, /makeSpeechPosition/);
+  assert.match(page, /speech-\$\{speechPosition\.side\}/);
   assert.match(page, /history\.slice\(0, 3\)/);
   assert.match(page, /impact: 0/);
   assert.match(page, /z: 0/);

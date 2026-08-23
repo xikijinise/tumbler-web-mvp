@@ -47,6 +47,13 @@ type FloatingEffect = {
   tone: string;
 };
 
+type SpeechPosition = {
+  id: number;
+  x: number;
+  y: number;
+  side: "left" | "right";
+};
+
 type AppearancePart = keyof TumblerAppearance;
 
 type TumblerSettings = {
@@ -67,6 +74,7 @@ const DEFAULT_APPEARANCE: TumblerAppearance = {
   middleImage: "custom-character.png",
   baseImage: null,
 };
+const INITIAL_SPEECH_POSITION: SpeechPosition = { id: 0, x: 74, y: 44, side: "right" };
 const IMAGE_PARTS: Array<{ id: AppearancePart; label: string; hint: string }> = [
   { id: "headImage", label: "头部", hint: "帽子 / 头部贴图" },
   { id: "middleImage", label: "中段", hint: "身体中段贴图" },
@@ -220,6 +228,16 @@ function makeInitialLog(): ActionLog[] {
   ];
 }
 
+function makeSpeechPosition(id: number): SpeechPosition {
+  const side = Math.random() < 0.5 ? "left" : "right";
+  return {
+    id,
+    side,
+    x: side === "left" ? 20 + Math.random() * 10 : 80 - Math.random() * 10,
+    y: 28 + Math.random() * 38,
+  };
+}
+
 function normalizeSayings(value: unknown) {
   if (!Array.isArray(value)) return [...DEFAULT_SAYINGS];
   const sayings = value
@@ -310,6 +328,7 @@ export default function Home() {
   const stageRef = useRef<HTMLDivElement>(null);
   const physicsCommandQueueRef = useRef<PhysicsCommand[]>([]);
   const actionIdRef = useRef(1);
+  const speechPositionIdRef = useRef(1);
   const comboRef = useRef(0);
   const lastHitRef = useRef(0);
   const lastInputAtRef = useRef(0);
@@ -344,6 +363,7 @@ export default function Home() {
   });
   const [sayingsDraft, setSayingsDraft] = useState(DEFAULT_SAYINGS.join("\n"));
   const [speechText, setSpeechText] = useState(DEFAULT_SAYINGS[0]);
+  const [speechPosition, setSpeechPosition] = useState(INITIAL_SPEECH_POSITION);
   const [settingsNotice, setSettingsNotice] = useState("");
 
   const stability = useMemo(
@@ -411,6 +431,11 @@ export default function Home() {
     return sayings[Math.floor(Math.random() * sayings.length)];
   }, [settings.sayings]);
 
+  const showSaying = useCallback((text: string) => {
+    setSpeechText(text);
+    setSpeechPosition(makeSpeechPosition(speechPositionIdRef.current++));
+  }, []);
+
   const pushLog = useCallback((entry: Omit<ActionLog, "id">) => {
     const id = actionIdRef.current++;
     setHistory((current) => [{ ...entry, id }, ...current].slice(0, 5));
@@ -475,7 +500,7 @@ export default function Home() {
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("归位完成");
-    setSpeechText("回到平衡点");
+    showSaying("回到平衡点");
     setEffects([]);
     pushLog({
       label: "归零",
@@ -483,7 +508,7 @@ export default function Home() {
       detail: "Rapier 刚体恢复到平衡点",
       tone: "muted",
     });
-  }, [pushLog, stopPointerRepeat]);
+  }, [pushLog, showSaying, stopPointerRepeat]);
 
   const autoReturn = useCallback(() => {
     lastInputAtRef.current = window.performance.now();
@@ -493,7 +518,7 @@ export default function Home() {
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("自动归位");
-    setSpeechText(pickSaying());
+    showSaying(pickSaying());
     setEffects([]);
     pushLog({
       label: "自动归位",
@@ -501,7 +526,7 @@ export default function Home() {
       detail: "无输入一段时间，慢慢返回初始位置",
       tone: "muted",
     });
-  }, [pickSaying, pushLog, stopPointerRepeat]);
+  }, [pickSaying, pushLog, showSaying, stopPointerRepeat]);
 
   const registerAction = useCallback(
     (
@@ -530,7 +555,7 @@ export default function Home() {
         point,
       });
       setLastImpact(action.label);
-      setSpeechText(pickSaying());
+      showSaying(pickSaying());
       pushLog({
         label: action.label,
         key: action.key,
@@ -543,7 +568,7 @@ export default function Home() {
         display.x + action.x,
       );
     },
-    [display.x, noteInput, pickSaying, pushLog, recordInput, spawnEffect],
+    [display.x, noteInput, pickSaying, pushLog, recordInput, showSaying, spawnEffect],
   );
 
   const registerActionRef = useRef(registerAction);
@@ -756,9 +781,9 @@ export default function Home() {
     const sayings = normalizeSayings(sayingsDraft.split(/\r?\n/));
     setSettings((current) => ({ ...current, sayings }));
     setSayingsDraft(sayings.join("\n"));
-    setSpeechText(sayings[0]);
+    showSaying(sayings[0]);
     setSettingsNotice("设置已应用");
-  }, [sayingsDraft]);
+  }, [sayingsDraft, showSaying]);
 
   const handleImageChange = useCallback(
     (part: AppearancePart, event: ChangeEvent<HTMLInputElement>) => {
@@ -858,7 +883,12 @@ export default function Home() {
               {effect.label}
             </span>
           ))}
-          <div className="speech-bubble" aria-live="polite">
+          <div
+            className={`speech-bubble speech-${speechPosition.side}`}
+            key={speechPosition.id}
+            style={{ left: `${speechPosition.x}%`, top: `${speechPosition.y}%` }}
+            aria-live="polite"
+          >
             “{speechText}”
           </div>
           <span className="drag-caption">{isDragging ? "RELEASE TO FLING" : "CLICK / DRAG"}</span>
