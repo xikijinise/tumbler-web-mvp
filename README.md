@@ -2,6 +2,8 @@
 
 这是一个网页端 3D 不倒翁 MVP，用鼠标和键盘测试受力、失衡、前后景深移动以及自动回正。
 
+以核云作为灵感。
+
 ## 示例 Demo
 
 - GitHub 仓库：[xikijinise/tumbler-web-mvp](https://github.com/xikijinise/tumbler-web-mvp)
