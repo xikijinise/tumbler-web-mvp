@@ -1,100 +1,49 @@
-# vinext-starter
+# 不倒翁互动实验
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+这是一个网页端 3D 不倒翁 MVP，用鼠标和键盘测试受力、失衡、前后景深移动以及自动回正。
 
-## Prerequisites
+## 示例 Demo
 
-- Node.js `>=22.13.0`
+- GitHub 仓库：[xikijinise/tumbler-web-mvp](https://github.com/xikijinise/tumbler-web-mvp)
+- GitHub Pages：[打开在线 Demo](https://xikijinise.github.io/tumbler-web-mvp/)
 
-## Quick Start
+当前仓库保留为私有仓库；如果 GitHub 账号或组织的 Pages 权限限制了私有仓库访问，在线地址需要登录后打开。
+
+## 交互
+
+- 鼠标点击或拖拽：施加连续的三维力量
+- `A / D`：向左或向右压倒
+- `W / S`：上勾拳或下砸
+- `Q / E`：回旋击或反手扫
+- `F`：朝观看者方向推动
+- `Space`：超载冲击
+- `R`：立即归零
+- 长按键盘或鼠标：持续受力；停止操作一段时间后自动缓慢回到初始位置
+- 设置：自定义不倒翁说的话，并上传头部、中段、底部图片
+
+## 本地运行
+
+要求 Node.js `>=22.13.0`。
 
 ```bash
 npm install
 npm run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000)。
+
+## 构建与测试
+
+```bash
+npm run lint
+npm test
+```
+
+GitHub Pages 使用以下流程生成静态 artifact：
+
+```bash
 npm run build
+npm run pages:build
 ```
 
-This starter does not use `wrangler.jsonc`.
-
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+`pages:build` 会用当前 Vinext SSR 输出生成 `dist/pages/index.html`，并复制 `dist/client` 的 3D 客户端资源；GitHub Actions 随后把该目录发布到 Pages。

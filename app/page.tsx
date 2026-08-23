@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { ChangeEvent, PointerEvent as ReactPointerEvent } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -9,6 +9,7 @@ import {
   type PhysicsAction,
   type PhysicsCommand,
   type PhysicsState,
+  type TumblerAppearance,
 } from "./tumbler-scene";
 
 type ActionId =
@@ -45,6 +46,27 @@ type FloatingEffect = {
   y: number;
   tone: string;
 };
+
+type AppearancePart = keyof TumblerAppearance;
+
+type TumblerSettings = {
+  sayings: string[];
+  appearance: TumblerAppearance;
+};
+
+const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v1";
+const DEFAULT_SAYINGS = ["我还能站稳", "再来一下", "这一下有点重"];
+const DEFAULT_APPEARANCE: TumblerAppearance = {
+  headImage: null,
+  middleImage: null,
+  baseImage: null,
+};
+const IMAGE_PARTS: Array<{ id: AppearancePart; label: string; hint: string }> = [
+  { id: "headImage", label: "头部", hint: "帽子 / 头部贴图" },
+  { id: "middleImage", label: "中段", hint: "身体中段贴图" },
+  { id: "baseImage", label: "底部", hint: "底座贴图" },
+];
+const MAX_CUSTOM_IMAGE_BYTES = 4 * 1024 * 1024;
 
 const ACTIONS: ActionDefinition[] = [
   {
@@ -173,6 +195,9 @@ const INITIAL_PHYSICS: PhysicsState = {
   vy: 0,
 };
 
+const INPUT_REPEAT_INTERVAL_MS = 140;
+const AUTO_RETURN_DELAY_MS = 3600;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -189,13 +214,53 @@ function makeInitialLog(): ActionLog[] {
   ];
 }
 
+function normalizeSayings(value: unknown) {
+  if (!Array.isArray(value)) return [...DEFAULT_SAYINGS];
+  const sayings = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return sayings.length > 0 ? sayings : [...DEFAULT_SAYINGS];
+}
+
+function normalizeImage(value: unknown) {
+  return typeof value === "string" && value.startsWith("data:image/") ? value : null;
+}
+
+function parseStoredSettings(raw: string | null): TumblerSettings {
+  if (!raw) {
+    return { sayings: [...DEFAULT_SAYINGS], appearance: { ...DEFAULT_APPEARANCE } };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      sayings?: unknown;
+      appearance?: Partial<Record<AppearancePart, unknown>>;
+    };
+    return {
+      sayings: normalizeSayings(parsed.sayings),
+      appearance: {
+        headImage: normalizeImage(parsed.appearance?.headImage),
+        middleImage: normalizeImage(parsed.appearance?.middleImage),
+        baseImage: normalizeImage(parsed.appearance?.baseImage),
+      },
+    };
+  } catch {
+    return { sayings: [...DEFAULT_SAYINGS], appearance: { ...DEFAULT_APPEARANCE } };
+  }
+}
+
 export default function Home() {
   const stageRef = useRef<HTMLDivElement>(null);
   const physicsCommandQueueRef = useRef<PhysicsCommand[]>([]);
   const actionIdRef = useRef(1);
   const comboRef = useRef(0);
   const lastHitRef = useRef(0);
-  const flashTimeoutRef = useRef<number | null>(null);
+  const lastInputAtRef = useRef(0);
+  const autoReturnArmedRef = useRef(false);
+  const settingsLoadedRef = useRef(false);
+  const pointerRepeatTimerRef = useRef<number | null>(null);
   const dragRef = useRef({
     active: false,
     moved: false,
@@ -212,9 +277,16 @@ export default function Home() {
   const [lastImpact, setLastImpact] = useState("待命");
   const [history, setHistory] = useState<ActionLog[]>(makeInitialLog);
   const [effects, setEffects] = useState<FloatingEffect[]>([]);
-  const [impactFlash, setImpactFlash] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<TumblerSettings>({
+    sayings: [...DEFAULT_SAYINGS],
+    appearance: { ...DEFAULT_APPEARANCE },
+  });
+  const [sayingsDraft, setSayingsDraft] = useState(DEFAULT_SAYINGS.join("\n"));
+  const [speechText, setSpeechText] = useState(DEFAULT_SAYINGS[0]);
+  const [settingsNotice, setSettingsNotice] = useState("");
 
   const stability = useMemo(
     () =>
@@ -232,10 +304,36 @@ export default function Home() {
   );
 
   useEffect(() => {
-    return () => {
-      if (flashTimeoutRef.current !== null) window.clearTimeout(flashTimeoutRef.current);
-    };
+    const loadTimer = window.setTimeout(() => {
+      const storedSettings = parseStoredSettings(window.localStorage.getItem(SETTINGS_STORAGE_KEY));
+      setSettings(storedSettings);
+      setSayingsDraft(storedSettings.sayings.join("\n"));
+      settingsLoadedRef.current = true;
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, []);
+
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    let noticeTimer: number | undefined;
+    try {
+      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      noticeTimer = window.setTimeout(() => {
+        setSettingsNotice("设置已应用，但图片太大，无法持久保存");
+      }, 0);
+    }
+
+    return () => {
+      if (noticeTimer !== undefined) window.clearTimeout(noticeTimer);
+    };
+  }, [settings]);
+
+  const pickSaying = useCallback(() => {
+    const sayings = settings.sayings.length > 0 ? settings.sayings : DEFAULT_SAYINGS;
+    return sayings[Math.floor(Math.random() * sayings.length)];
+  }, [settings.sayings]);
 
   const pushLog = useCallback((entry: Omit<ActionLog, "id">) => {
     const id = actionIdRef.current++;
@@ -257,18 +355,28 @@ export default function Home() {
     }, 680);
   }, []);
 
-  const triggerFlash = useCallback(() => {
-    setImpactFlash(true);
-    if (flashTimeoutRef.current !== null) window.clearTimeout(flashTimeoutRef.current);
-    flashTimeoutRef.current = window.setTimeout(() => setImpactFlash(false), 130);
+  const stopPointerRepeat = useCallback(() => {
+    if (pointerRepeatTimerRef.current !== null) {
+      window.clearInterval(pointerRepeatTimerRef.current);
+      pointerRepeatTimerRef.current = null;
+    }
+  }, []);
+
+  const noteInput = useCallback(() => {
+    lastInputAtRef.current = window.performance.now();
+    autoReturnArmedRef.current = true;
   }, []);
 
   const resetLab = useCallback(() => {
+    lastInputAtRef.current = window.performance.now();
+    autoReturnArmedRef.current = false;
+    stopPointerRepeat();
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "reset" });
     setDisplay({ ...INITIAL_PHYSICS });
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("归位完成");
+    setSpeechText("回到平衡点");
     setEffects([]);
     pushLog({
       label: "归零",
@@ -276,7 +384,25 @@ export default function Home() {
       detail: "Rapier 刚体恢复到平衡点",
       tone: "muted",
     });
-  }, [pushLog]);
+  }, [pushLog, stopPointerRepeat]);
+
+  const autoReturn = useCallback(() => {
+    lastInputAtRef.current = window.performance.now();
+    autoReturnArmedRef.current = false;
+    stopPointerRepeat();
+    physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "return" });
+    comboRef.current = 0;
+    setCombo(0);
+    setLastImpact("自动归位");
+    setSpeechText(pickSaying());
+    setEffects([]);
+    pushLog({
+      label: "自动归位",
+      key: "AUTO",
+      detail: "无输入一段时间，慢慢返回初始位置",
+      tone: "muted",
+    });
+  }, [pickSaying, pushLog, stopPointerRepeat]);
 
   const registerAction = useCallback(
     (
@@ -286,6 +412,7 @@ export default function Home() {
     ) => {
       const action = ACTIONS.find((item) => item.id === actionId);
       if (!action) return;
+      noteInput();
 
       const now = window.performance.now();
       const isChain = now - lastHitRef.current < 900;
@@ -303,6 +430,7 @@ export default function Home() {
         point,
       });
       setLastImpact(action.label);
+      setSpeechText(pickSaying());
       pushLog({
         label: action.label,
         key: action.key,
@@ -314,14 +442,42 @@ export default function Home() {
         action.tone,
         display.x + action.x,
       );
-      triggerFlash();
     },
-    [display.x, pushLog, spawnEffect, triggerFlash],
+    [display.x, noteInput, pickSaying, pushLog, spawnEffect],
   );
 
+  const registerActionRef = useRef(registerAction);
+
   useEffect(() => {
+    registerActionRef.current = registerAction;
+  }, [registerAction]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (
+        autoReturnArmedRef.current &&
+        window.performance.now() - lastInputAtRef.current >= AUTO_RETURN_DELAY_MS
+      ) {
+        autoReturn();
+      }
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [autoReturn]);
+
+  useEffect(() => {
+    const keyRepeatTimers = new Map<string, number>();
+
+    const clearKeyRepeats = () => {
+      for (const timer of keyRepeatTimers.values()) {
+        window.clearInterval(timer);
+      }
+      keyRepeatTimers.clear();
+    };
+
+    const inputIdFor = (event: KeyboardEvent) => event.code || event.key.toLowerCase();
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) return;
       const key = event.key.toLowerCase();
       const match: ActionId | null =
         key === "a"
@@ -344,22 +500,51 @@ export default function Home() {
 
       if (match) {
         event.preventDefault();
-        registerAction(match);
-      } else if (key === "r") {
+        const inputId = inputIdFor(event);
+        if (keyRepeatTimers.has(inputId)) return;
+
+        registerActionRef.current(match);
+        const timer = window.setInterval(() => {
+          registerActionRef.current(match);
+        }, INPUT_REPEAT_INTERVAL_MS);
+        keyRepeatTimers.set(inputId, timer);
+      } else if (key === "r" && !event.repeat) {
         event.preventDefault();
         resetLab();
       }
     };
 
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const inputId = inputIdFor(event);
+      const timer = keyRepeatTimers.get(inputId);
+      if (timer === undefined) return;
+      window.clearInterval(timer);
+      keyRepeatTimers.delete(inputId);
+    };
+
+    const clearHeldInputs = () => {
+      clearKeyRepeats();
+      stopPointerRepeat();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [registerAction, resetLab]);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", clearHeldInputs);
+    document.addEventListener("visibilitychange", clearHeldInputs);
+    return () => {
+      clearHeldInputs();
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", clearHeldInputs);
+      document.removeEventListener("visibilitychange", clearHeldInputs);
+    };
+  }, [resetLab, stopPointerRepeat]);
 
   const handleStagePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
       const target = event.target as HTMLElement;
-      if (target.closest("button")) return;
+      if (target.closest("button, input, textarea, label, [role=\"dialog\"], .corner-controls")) return;
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -368,7 +553,11 @@ export default function Home() {
         x: ((event.clientX - rect.left) / rect.width) * 100,
         y: ((event.clientY - rect.top) / rect.height) * 100,
       };
-      registerAction(side, 0.72, point);
+      registerActionRef.current(side, 0.72, point);
+      stopPointerRepeat();
+      pointerRepeatTimerRef.current = window.setInterval(() => {
+        registerActionRef.current(side, 0.72, point);
+      }, INPUT_REPEAT_INTERVAL_MS);
       dragRef.current = {
         active: true,
         moved: false,
@@ -381,7 +570,7 @@ export default function Home() {
       setIsDragging(false);
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [registerAction],
+    [stopPointerRepeat],
   );
 
   const handleStagePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -394,11 +583,13 @@ export default function Home() {
     const totalY = event.clientY - drag.startY;
     if (Math.abs(totalX) + Math.abs(totalY) > 8) {
       drag.moved = true;
+      stopPointerRepeat();
       setIsDragging(true);
     }
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
     if (drag.moved) {
+      noteInput();
       physicsCommandQueueRef.current.push({
         id: actionIdRef.current++,
         type: "drag",
@@ -406,12 +597,13 @@ export default function Home() {
         dy,
       });
     }
-  }, []);
+  }, [noteInput, stopPointerRepeat]);
 
   const handleStagePointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       if (!drag.active || drag.pointerId !== event.pointerId) return;
+      stopPointerRepeat();
 
       if (drag.moved) {
         const totalX = event.clientX - drag.startX;
@@ -422,6 +614,7 @@ export default function Home() {
           totalX,
           totalY,
         });
+        noteInput();
         setLastImpact("拖拽甩动");
         pushLog({
           label: "拖拽甩动",
@@ -430,7 +623,6 @@ export default function Home() {
           tone: "cyan",
         });
         spawnEffect("FLING", "cyan", display.x + totalX * 0.2);
-        triggerFlash();
       }
 
       dragRef.current.active = false;
@@ -440,28 +632,68 @@ export default function Home() {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [display.x, pushLog, spawnEffect, triggerFlash],
+    [display.x, noteInput, pushLog, spawnEffect, stopPointerRepeat],
   );
+
+  const applySettings = useCallback(() => {
+    const sayings = normalizeSayings(sayingsDraft.split(/\r?\n/));
+    setSettings((current) => ({ ...current, sayings }));
+    setSayingsDraft(sayings.join("\n"));
+    setSpeechText(sayings[0]);
+    setSettingsNotice("设置已应用");
+  }, [sayingsDraft]);
+
+  const handleImageChange = useCallback(
+    (part: AppearancePart, event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setSettingsNotice("请选择图片文件");
+        return;
+      }
+      if (file.size > MAX_CUSTOM_IMAGE_BYTES) {
+        setSettingsNotice("图片不能超过 4MB");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result !== "string") return;
+        setSettings((current) => ({
+          ...current,
+          appearance: { ...current.appearance, [part]: reader.result as string },
+        }));
+        setSettingsNotice(`${IMAGE_PARTS.find((item) => item.id === part)?.label ?? "部位"}图片已载入`);
+      };
+      reader.onerror = () => setSettingsNotice("图片读取失败，请换一张试试");
+      reader.readAsDataURL(file);
+    },
+    [],
+  );
+
+  const clearImage = useCallback((part: AppearancePart) => {
+    setSettings((current) => ({
+      ...current,
+      appearance: { ...current.appearance, [part]: null },
+    }));
+    setSettingsNotice("图片已清除");
+  }, []);
 
   return (
     <main className="experiment-shell">
       <section
-        className={`experiment-board ${impactFlash ? "is-flashing" : ""} ${
-          isDragging ? "is-dragging" : ""
-        }`}
+        className={`experiment-board ${isDragging ? "is-dragging" : ""}`}
         ref={stageRef}
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
         onPointerUp={handleStagePointerUp}
         onPointerCancel={handleStagePointerUp}
         role="application"
-        aria-label="不倒翁打击实验台，点击或拖拽来施加真实三维力量"
+        aria-label="不倒翁互动实验台，点击或拖拽来施加真实三维力量"
       >
-        <div className="board-texture" aria-hidden="true" />
         <header className="corner corner-brand">
-          <p className="corner-overline">ROLY-POLY / TEST 02</p>
-          <h1>不倒翁<br /><em>打击实验</em></h1>
-          <span className="brand-rule" />
+          <h1>不倒翁<br /><em>互动实验</em></h1>
         </header>
 
         <aside className="corner corner-status" aria-label="实时状态">
@@ -471,7 +703,6 @@ export default function Home() {
             <div><span>角度</span><strong>{display.angle >= 0 ? "+" : ""}{display.angle.toFixed(1)}°</strong></div>
             <div><span>连击</span><strong className={combo > 1 ? "is-accent" : ""}>×{combo}</strong></div>
           </div>
-          <div className="momentum-line"><span style={{ width: `${clamp(Math.abs(display.angularVelocity) * 1.4, 4, 100)}%` }} /></div>
           <div className="depth-readout"><span>Z DEPTH</span><strong>{display.z >= 0 ? "+" : ""}{display.z.toFixed(0)} px · {display.z > 10 ? "靠近" : display.z < -10 ? "远离" : "中性"}</strong></div>
           <div className="status-foot"><span>LAST IMPACT</span><strong>{lastImpact}</strong></div>
           <button className="reset-corner" onClick={resetLab} type="button" aria-label="重新归零">
@@ -494,7 +725,11 @@ export default function Home() {
               }}
               style={{ pointerEvents: "none" }}
             >
-              <TumblerScene commandQueueRef={physicsCommandQueueRef} onState={setDisplay} />
+              <TumblerScene
+                commandQueueRef={physicsCommandQueueRef}
+                onState={setDisplay}
+                appearance={settings.appearance}
+              />
             </Canvas>
           </div>
           {effects.map((effect) => (
@@ -506,19 +741,39 @@ export default function Home() {
               {effect.label}
             </span>
           ))}
+          <div className="speech-bubble" aria-live="polite">
+            “{speechText}”
+          </div>
           <span className="drag-caption">{isDragging ? "RELEASE TO FLING" : "CLICK / DRAG"}</span>
         </div>
 
         <div className="corner corner-help">
-          <button
-            className={`help-trigger ${helpOpen ? "is-open" : ""}`}
-            onClick={() => setHelpOpen((open) => !open)}
-            type="button"
-            aria-expanded={helpOpen}
-            aria-controls="help-panel"
-          >
-            <span>?</span> 操作说明
-          </button>
+          <div className="corner-controls">
+            <button
+              className={`help-trigger ${helpOpen ? "is-open" : ""}`}
+              onClick={() => {
+                setHelpOpen((open) => !open);
+                setSettingsOpen(false);
+              }}
+              type="button"
+              aria-expanded={helpOpen}
+              aria-controls="help-panel"
+            >
+              <span>?</span> 操作说明
+            </button>
+            <button
+              className={`settings-trigger ${settingsOpen ? "is-open" : ""}`}
+              onClick={() => {
+                setSettingsOpen((open) => !open);
+                setHelpOpen(false);
+              }}
+              type="button"
+              aria-expanded={settingsOpen}
+              aria-controls="settings-panel"
+            >
+              <span>⚙</span> 设置
+            </button>
+          </div>
           {helpOpen && (
             <div className="help-panel" id="help-panel" role="dialog" aria-label="操作说明">
               <div className="help-heading"><strong>INPUT / ACTIONS</strong><button onClick={() => setHelpOpen(false)} type="button" aria-label="关闭说明">×</button></div>
@@ -531,6 +786,69 @@ export default function Home() {
                 ))}
               </div>
               <div className="help-reset"><kbd>R</kbd><span>回到平衡点</span></div>
+            </div>
+          )}
+          {settingsOpen && (
+            <div
+              className="settings-panel"
+              id="settings-panel"
+              role="dialog"
+              aria-label="不倒翁设置"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="settings-heading">
+                <strong>SETTINGS / CUSTOMIZE</strong>
+                <button onClick={() => setSettingsOpen(false)} type="button" aria-label="关闭设置">×</button>
+              </div>
+              <p className="settings-intro">自定义它会说的话，也可以给头部、中段和底部换上自己的图片。</p>
+              <label className="settings-field">
+                <span>不倒翁台词</span>
+                <textarea
+                  value={sayingsDraft}
+                  onChange={(event) => setSayingsDraft(event.target.value)}
+                  placeholder="每行写一句，动作时随机说一句"
+                  rows={4}
+                />
+                <small>每行一句，最多保存 8 句</small>
+              </label>
+              <div className="settings-section-title">3D 外观 / IMAGE PARTS</div>
+              <div className="image-settings">
+                {IMAGE_PARTS.map((part) => {
+                  const image = settings.appearance[part.id];
+                  return (
+                    <div className="image-setting" key={part.id}>
+                      <div className="image-setting-meta">
+                        <strong>{part.label}</strong>
+                        <small>{part.hint}</small>
+                      </div>
+                      <label className="image-picker">
+                        {image ? <img src={image} alt={`${part.label}预览`} /> : <span>＋</span>}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(event) => handleImageChange(part.id, event)}
+                        />
+                      </label>
+                      {image && (
+                        <button className="image-clear" type="button" onClick={() => clearImage(part.id)}>
+                          清除
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {settingsNotice && <div className="settings-notice">{settingsNotice}</div>}
+              <button
+                className="settings-apply"
+                type="button"
+                onClick={() => {
+                  applySettings();
+                  setSettingsOpen(false);
+                }}
+              >
+                应用设置
+              </button>
             </div>
           )}
         </div>

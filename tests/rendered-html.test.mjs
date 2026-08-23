@@ -29,8 +29,9 @@ test("server-renders the tumbler experiment", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>不倒翁打击实验场 · MVP<\/title>/i);
-  assert.match(html, /ROLY-POLY \/ TEST 02/);
+  assert.match(html, /<title>不倒翁互动实验 · MVP<\/title>/i);
+  assert.match(html, /互动实验/);
+  assert.doesNotMatch(html, /ROLY-POLY \/ TEST 02/);
   assert.match(html, /操作说明/);
   assert.match(html, /动作回放/);
   assert.match(html, /LIVE \/ RAPIER 3D/);
@@ -52,8 +53,15 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /onPointerDown/);
   assert.match(page, /onPointerMove/);
   assert.match(page, /onPointerUp/);
+  assert.match(page, /button, input, textarea, label/);
+  assert.match(page, /onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(page, /event\.code === "Space"/);
   assert.match(page, /setHelpOpen/);
+  assert.match(page, /settingsOpen/);
+  assert.match(page, /settings-panel/);
+  assert.match(page, /handleImageChange/);
+  assert.match(page, /SETTINGS_STORAGE_KEY/);
+  assert.match(page, /speechText/);
   assert.match(page, /history\.slice\(0, 3\)/);
   assert.match(page, /impact: 0/);
   assert.match(page, /z: 0/);
@@ -62,6 +70,17 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /type: "release"/);
   assert.match(page, /id: "forward"/);
   assert.match(page, /key === "f"/);
+  assert.match(page, /INPUT_REPEAT_INTERVAL_MS/);
+  assert.match(page, /AUTO_RETURN_DELAY_MS/);
+  assert.match(page, /autoReturnArmedRef/);
+  assert.match(page, /自动归位/);
+  assert.match(page, /type: "return"/);
+  assert.match(page, /setInterval/);
+  assert.match(page, /addEventListener\("keyup"/);
+  assert.match(page, /pointerRepeatTimerRef/);
+  assert.match(page, /stopPointerRepeat/);
+  assert.doesNotMatch(page, /if \(event\.repeat\) return/);
+  assert.doesNotMatch(page, /impactFlash|flashTimeout|triggerFlash|is-flashing/);
   assert.match(scene, /<Physics gravity=/);
   assert.match(scene, /<RigidBody/);
   assert.match(scene, /<BallCollider/);
@@ -69,18 +88,31 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(scene, /function BoundaryWalls/);
   assert.match(scene, /verticalCenter/);
   assert.match(scene, /wallThickness/);
+  assert.match(scene, /SCREEN_DEPTH_MAX/);
+  assert.match(scene, /sideWallX/);
+  assert.match(scene, /frontWallZ/);
+  assert.match(scene, /ACTION_FORCE_GAIN/);
+  assert.match(scene, /TumblerAppearance/);
+  assert.match(scene, /useImageTexture/);
+  assert.match(scene, /returningRef/);
+  assert.match(scene, /function FrontImage/);
+  assert.match(scene, /planeGeometry/);
+  assert.match(scene, /meshBasicMaterial/);
   assert.match(scene, /applyTorqueImpulse/);
   assert.match(scene, /useFrame/);
   assert.match(scene, /latheGeometry/);
   assert.match(scene, /uprightEuler/);
-  assert.doesNotMatch(page, /board-crosshair|impact-rings|ground-marker|impact-wave/);
-  assert.match(css, /--paper:\s*#f6f5ef/);
+  assert.doesNotMatch(page, /board-crosshair|impact-rings|ground-marker|impact-wave|ROLY-POLY \/ TEST 02|brand-rule|board-texture|momentum-line/);
+  assert.match(css, /--paper:\s*#ffffff/);
+  assert.match(css, /\.experiment-board[\s\S]*background:\s*#fff/);
+  assert.doesNotMatch(css, /background:\s*#e9e8e0/);
   assert.match(css, /\.subject-zone/);
   assert.match(css, /\.subject-zone[\s\S]*inset:\s*0/);
   assert.match(css, /perspective:\s*1100px/);
   assert.match(css, /\.three-stage/);
   assert.match(css, /\.three-stage canvas/);
   assert.doesNotMatch(css, /board-crosshair|impact-rings|ground-marker|impact-wave/);
+  assert.doesNotMatch(css, /is-flashing|filter:\s*brightness/);
   assert.doesNotMatch(page, /tumbler-real\.png/);
   assert.doesNotMatch(css, /\.telemetry-panel|\.action-grid|\.side-column/);
   for (const key of ["left", "right", "uppercut", "stomp", "spin", "backhand", "forward", "super"]) {
@@ -88,7 +120,7 @@ test("keeps the interaction model in the MVP source", async () => {
   }
 
   assert.match(layout, /lang="zh-CN"/);
-  assert.match(layout, /不倒翁打击实验场 · MVP/);
+  assert.match(layout, /不倒翁互动实验 · MVP/);
   assert.doesNotMatch(page, /SkeletonPreview|react-loading-skeleton|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/tumbler-real.png", import.meta.url));
