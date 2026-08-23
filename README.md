@@ -8,8 +8,7 @@
 
 - GitHub 仓库：[xikijinise/tumbler-web-mvp](https://github.com/xikijinise/tumbler-web-mvp)
 - GitHub Pages：[打开在线 Demo](https://xikijinise.github.io/tumbler-web-mvp/)
-
-当前仓库保留为私有仓库；如果 GitHub 账号或组织的 Pages 权限限制了私有仓库访问，在线地址需要登录后打开。
+- Supabase：保存 Demo 的全站历史输入计数，不保存访客个人信息
 
 ## 交互
 
@@ -21,7 +20,7 @@
 - `Space`：超载冲击
 - `R`：立即归零
 - 长按键盘或鼠标：持续受力；停止操作一段时间后自动缓慢回到初始位置
-- 底部“自动”：模拟随机输入；右侧“历史输入”：累计当前浏览器中的输入次数
+- 底部“自动”：模拟随机输入；右侧“全站历史”：累计所有访客的输入次数
 - 设置：自定义不倒翁说的话，并上传头部、中段、底部图片
 
 ## 本地运行

@@ -56,6 +56,11 @@ type TumblerSettings = {
 
 const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v2";
 const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
+const SUPABASE_PROJECT_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uipntxlrfctydhgxmxjd.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpcG50eGxyZmN0eWRoZ3hteGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0OTE3MzYsImV4cCI6MjEwMzA2NzczNn0.6c9b4kc37umD7ejz7m01reJLcNm0FBKMH18sitkCboY";
 const DEFAULT_SAYINGS = ["等等就好了", "明天就好了", "再等等", "已经让人处理了"];
 const DEFAULT_APPEARANCE: TumblerAppearance = {
   headImage: "custom-character.png",
@@ -231,9 +236,51 @@ function normalizeImage(value: unknown) {
     : null;
 }
 
+function parseCountValue(value: unknown): number | null {
+  const count = typeof value === "number" ? value : Number.parseInt(typeof value === "string" ? value : "", 10);
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
 function normalizeHistoryCount(value: string | null) {
-  const count = Number.parseInt(value ?? "", 10);
-  return Number.isSafeInteger(count) && count > 0 ? count : 0;
+  return parseCountValue(value) ?? 0;
+}
+
+function normalizeRemoteCount(value: unknown) {
+  if (Array.isArray(value)) return parseCountValue(value[0]);
+  if (value && typeof value === "object" && "get_input_count" in value) {
+    return parseCountValue(value.get_input_count);
+  }
+  return parseCountValue(value);
+}
+
+async function callCountRpc(name: "get_input_count" | "increment_input_count") {
+  if (!SUPABASE_PROJECT_URL || !SUPABASE_ANON_KEY) return null;
+
+  try {
+    const response = await fetch(`${SUPABASE_PROJECT_URL}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return normalizeRemoteCount(await response.json());
+  } catch {
+    return null;
+  }
+}
+
+function fetchGlobalInputCount() {
+  return callCountRpc("get_input_count");
+}
+
+function incrementGlobalInputCount() {
+  return callCountRpc("increment_input_count");
 }
 
 function parseStoredSettings(raw: string | null): TumblerSettings {
@@ -315,6 +362,7 @@ export default function Home() {
   );
 
   useEffect(() => {
+    let active = true;
     const loadTimer = window.setTimeout(() => {
       const storedSettings = parseStoredSettings(window.localStorage.getItem(SETTINGS_STORAGE_KEY));
       setSettings(storedSettings);
@@ -323,9 +371,23 @@ export default function Home() {
       totalInputCountRef.current = storedCount;
       setTotalInputCount(storedCount);
       settingsLoadedRef.current = true;
+
+      void fetchGlobalInputCount().then((remoteCount) => {
+        if (!active || remoteCount === null) return;
+        totalInputCountRef.current = remoteCount;
+        setTotalInputCount(remoteCount);
+        try {
+          window.localStorage.setItem(HISTORY_COUNT_STORAGE_KEY, String(remoteCount));
+        } catch {
+          // The live count still works when persistence is unavailable.
+        }
+      });
     }, 0);
 
-    return () => window.clearTimeout(loadTimer);
+    return () => {
+      active = false;
+      window.clearTimeout(loadTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -390,6 +452,18 @@ export default function Home() {
     } catch {
       // The counter still works for this session when persistence is unavailable.
     }
+
+    void incrementGlobalInputCount().then((remoteCount) => {
+      if (remoteCount === null) return;
+      const mergedCount = Math.max(totalInputCountRef.current, remoteCount);
+      totalInputCountRef.current = mergedCount;
+      setTotalInputCount((current) => Math.max(current, remoteCount));
+      try {
+        window.localStorage.setItem(HISTORY_COUNT_STORAGE_KEY, String(mergedCount));
+      } catch {
+        // The live count still works when persistence is unavailable.
+      }
+    });
   }, []);
 
   const resetLab = useCallback(() => {
@@ -909,8 +983,8 @@ export default function Home() {
               <small>{autoEnabled ? "随机输入中" : "模拟随机输入"}</small>
             </span>
           </button>
-          <div className="history-count" aria-live="polite" title="保存在当前浏览器中的历史输入次数">
-            <span>历史输入</span>
+          <div className="history-count" aria-live="polite" title="Supabase 全站累计输入次数">
+            <span>全站历史</span>
             <strong>{totalInputCount.toLocaleString("zh-CN")}</strong>
           </div>
         </div>

@@ -36,7 +36,7 @@ test("server-renders the tumbler experiment", async () => {
   assert.match(html, /动作回放/);
   assert.match(html, /等等就好了/);
   assert.match(html, /自动/);
-  assert.match(html, /历史输入/);
+  assert.match(html, /全站历史/);
   assert.match(html, /LIVE \/ RAPIER 3D/);
   assert.match(html, /three-stage/);
   assert.doesNotMatch(html, /board-crosshair|impact-rings|ground-marker/);
@@ -65,6 +65,11 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /handleImageChange/);
   assert.match(page, /SETTINGS_STORAGE_KEY/);
   assert.match(page, /HISTORY_COUNT_STORAGE_KEY/);
+  assert.match(page, /SUPABASE_PROJECT_URL/);
+  assert.match(page, /get_input_count/);
+  assert.match(page, /increment_input_count/);
+  assert.match(page, /fetchGlobalInputCount/);
+  assert.match(page, /incrementGlobalInputCount/);
   assert.match(page, /custom-character\.png/);
   assert.match(page, /autoEnabled/);
   assert.match(page, /setAutoEnabled/);
