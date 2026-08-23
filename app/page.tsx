@@ -54,11 +54,12 @@ type TumblerSettings = {
   appearance: TumblerAppearance;
 };
 
-const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v1";
-const DEFAULT_SAYINGS = ["我还能站稳", "再来一下", "这一下有点重"];
+const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v2";
+const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
+const DEFAULT_SAYINGS = ["等等就好了", "明天就好了", "再等等", "已经让人处理了"];
 const DEFAULT_APPEARANCE: TumblerAppearance = {
-  headImage: null,
-  middleImage: null,
+  headImage: "custom-character.png",
+  middleImage: "custom-character.png",
   baseImage: null,
 };
 const IMAGE_PARTS: Array<{ id: AppearancePart; label: string; hint: string }> = [
@@ -225,7 +226,14 @@ function normalizeSayings(value: unknown) {
 }
 
 function normalizeImage(value: unknown) {
-  return typeof value === "string" && value.startsWith("data:image/") ? value : null;
+  return typeof value === "string" && (value.startsWith("data:image/") || value.startsWith("custom-character.png"))
+    ? value
+    : null;
+}
+
+function normalizeHistoryCount(value: string | null) {
+  const count = Number.parseInt(value ?? "", 10);
+  return Number.isSafeInteger(count) && count > 0 ? count : 0;
 }
 
 function parseStoredSettings(raw: string | null): TumblerSettings {
@@ -276,8 +284,11 @@ export default function Home() {
   const [bestCombo, setBestCombo] = useState(0);
   const [lastImpact, setLastImpact] = useState("待命");
   const [history, setHistory] = useState<ActionLog[]>(makeInitialLog);
+  const [totalInputCount, setTotalInputCount] = useState(0);
+  const totalInputCountRef = useRef(0);
   const [effects, setEffects] = useState<FloatingEffect[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [autoEnabled, setAutoEnabled] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<TumblerSettings>({
@@ -308,6 +319,9 @@ export default function Home() {
       const storedSettings = parseStoredSettings(window.localStorage.getItem(SETTINGS_STORAGE_KEY));
       setSettings(storedSettings);
       setSayingsDraft(storedSettings.sayings.join("\n"));
+      const storedCount = normalizeHistoryCount(window.localStorage.getItem(HISTORY_COUNT_STORAGE_KEY));
+      totalInputCountRef.current = storedCount;
+      setTotalInputCount(storedCount);
       settingsLoadedRef.current = true;
     }, 0);
 
@@ -367,6 +381,17 @@ export default function Home() {
     autoReturnArmedRef.current = true;
   }, []);
 
+  const recordInput = useCallback(() => {
+    const nextCount = Math.min(totalInputCountRef.current + 1, Number.MAX_SAFE_INTEGER);
+    totalInputCountRef.current = nextCount;
+    setTotalInputCount(nextCount);
+    try {
+      window.localStorage.setItem(HISTORY_COUNT_STORAGE_KEY, String(nextCount));
+    } catch {
+      // The counter still works for this session when persistence is unavailable.
+    }
+  }, []);
+
   const resetLab = useCallback(() => {
     lastInputAtRef.current = window.performance.now();
     autoReturnArmedRef.current = false;
@@ -413,6 +438,7 @@ export default function Home() {
       const action = ACTIONS.find((item) => item.id === actionId);
       if (!action) return;
       noteInput();
+      recordInput();
 
       const now = window.performance.now();
       const isChain = now - lastHitRef.current < 900;
@@ -443,7 +469,7 @@ export default function Home() {
         display.x + action.x,
       );
     },
-    [display.x, noteInput, pickSaying, pushLog, spawnEffect],
+    [display.x, noteInput, pickSaying, pushLog, recordInput, spawnEffect],
   );
 
   const registerActionRef = useRef(registerAction);
@@ -451,6 +477,22 @@ export default function Home() {
   useEffect(() => {
     registerActionRef.current = registerAction;
   }, [registerAction]);
+
+  useEffect(() => {
+    if (!autoEnabled) return;
+    let timer: number | null = null;
+
+    const simulateInput = () => {
+      const action = ACTIONS[Math.floor(Math.random() * ACTIONS.length)];
+      registerActionRef.current(action.id, 0.78 + Math.random() * 0.45);
+      timer = window.setTimeout(simulateInput, 720 + Math.random() * 860);
+    };
+
+    timer = window.setTimeout(simulateInput, 360);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [autoEnabled]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -544,7 +586,7 @@ export default function Home() {
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
       const target = event.target as HTMLElement;
-      if (target.closest("button, input, textarea, label, [role=\"dialog\"], .corner-controls")) return;
+      if (target.closest("button, input, textarea, label, [role=\"dialog\"], .corner-controls, .corner-footer")) return;
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -615,6 +657,7 @@ export default function Home() {
           totalY,
         });
         noteInput();
+        recordInput();
         setLastImpact("拖拽甩动");
         pushLog({
           label: "拖拽甩动",
@@ -632,7 +675,7 @@ export default function Home() {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [display.x, noteInput, pushLog, spawnEffect, stopPointerRepeat],
+    [display.x, noteInput, pushLog, recordInput, spawnEffect, stopPointerRepeat],
   );
 
   const applySettings = useCallback(() => {
@@ -851,6 +894,25 @@ export default function Home() {
               </button>
             </div>
           )}
+        </div>
+
+        <div className="corner corner-footer" aria-label="自动输入与历史计数">
+          <button
+            className={`auto-toggle ${autoEnabled ? "is-on" : ""}`}
+            type="button"
+            aria-pressed={autoEnabled}
+            onClick={() => setAutoEnabled((enabled) => !enabled)}
+          >
+            <span className="auto-toggle-dot" />
+            <span className="auto-toggle-copy">
+              <strong>自动</strong>
+              <small>{autoEnabled ? "随机输入中" : "模拟随机输入"}</small>
+            </span>
+          </button>
+          <div className="history-count" aria-live="polite" title="保存在当前浏览器中的历史输入次数">
+            <span>历史输入</span>
+            <strong>{totalInputCount.toLocaleString("zh-CN")}</strong>
+          </div>
         </div>
 
         <aside className="corner corner-replay" aria-label="动作回放">

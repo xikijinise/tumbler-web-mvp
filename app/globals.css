@@ -318,6 +318,94 @@ kbd {
   left: 42px;
 }
 
+.corner-footer {
+  bottom: 38px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+.auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 8px 13px 8px 10px;
+  text-align: left;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.auto-toggle:hover,
+.auto-toggle.is-on {
+  border-color: var(--lime);
+  color: var(--ink);
+}
+
+.auto-toggle.is-on {
+  background: rgba(148, 186, 47, 0.08);
+}
+
+.auto-toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.auto-toggle.is-on .auto-toggle-dot {
+  background: var(--lime);
+  box-shadow: 0 0 0 4px rgba(148, 186, 47, 0.14);
+}
+
+.auto-toggle-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.auto-toggle-copy strong {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.auto-toggle-copy small {
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.history-count {
+  display: grid;
+  min-width: 92px;
+  gap: 3px;
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+}
+
+.history-count span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.history-count strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .corner-controls {
   display: flex;
   align-items: center;
@@ -738,7 +826,7 @@ kbd {
 }
 
 .corner-hint {
-  bottom: 43px;
+  bottom: 82px;
   left: 50%;
   display: flex;
   align-items: center;
@@ -799,6 +887,11 @@ kbd {
   .corner-help {
     bottom: 24px;
     left: 24px;
+  }
+
+  .corner-footer {
+    bottom: 24px;
+    gap: 12px;
   }
 
   .settings-panel {
@@ -873,6 +966,29 @@ kbd {
   .corner-help {
     bottom: 19px;
     left: 18px;
+  }
+
+  .corner-footer {
+    bottom: 18px;
+    gap: 8px;
+  }
+
+  .auto-toggle {
+    padding: 7px 10px 7px 8px;
+  }
+
+  .auto-toggle-copy small {
+    display: none;
+  }
+
+  .history-count {
+    min-width: 68px;
+    gap: 2px;
+    padding-left: 10px;
+  }
+
+  .history-count strong {
+    font-size: 13px;
   }
 
   .help-trigger {

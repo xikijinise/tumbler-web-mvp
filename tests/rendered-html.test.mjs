@@ -34,6 +34,9 @@ test("server-renders the tumbler experiment", async () => {
   assert.doesNotMatch(html, /ROLY-POLY \/ TEST 02/);
   assert.match(html, /操作说明/);
   assert.match(html, /动作回放/);
+  assert.match(html, /等等就好了/);
+  assert.match(html, /自动/);
+  assert.match(html, /历史输入/);
   assert.match(html, /LIVE \/ RAPIER 3D/);
   assert.match(html, /three-stage/);
   assert.doesNotMatch(html, /board-crosshair|impact-rings|ground-marker/);
@@ -61,6 +64,14 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /settings-panel/);
   assert.match(page, /handleImageChange/);
   assert.match(page, /SETTINGS_STORAGE_KEY/);
+  assert.match(page, /HISTORY_COUNT_STORAGE_KEY/);
+  assert.match(page, /custom-character\.png/);
+  assert.match(page, /autoEnabled/);
+  assert.match(page, /setAutoEnabled/);
+  assert.match(page, /模拟随机输入/);
+  assert.match(page, /totalInputCount/);
+  assert.match(page, /recordInput/);
+  assert.match(page, /corner-footer/);
   assert.match(page, /speechText/);
   assert.match(page, /history\.slice\(0, 3\)/);
   assert.match(page, /impact: 0/);
@@ -124,6 +135,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.doesNotMatch(page, /SkeletonPreview|react-loading-skeleton|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/tumbler-real.png", import.meta.url));
+  await access(new URL("../public/custom-character.png", import.meta.url));
   await assert.rejects(
     access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)),
   );
