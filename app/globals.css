@@ -288,7 +288,7 @@ kbd {
 
 .three-fallback-body {
   display: block;
-  width: min(34vw, 300px);
+  width: min(42vw, 330px);
   aspect-ratio: 0.72;
   height: auto;
   overflow: visible;
@@ -888,6 +888,10 @@ kbd {
   .corner-hint {
     display: none;
   }
+
+  .three-fallback-body {
+    width: min(64vw, 310px);
+  }
 }
 
 @media (max-width: 560px) {
@@ -1005,6 +1009,10 @@ kbd {
     right: 18px;
     bottom: 19px;
     width: 155px;
+  }
+
+  .three-fallback-body {
+    width: min(70vw, 300px);
   }
 
   .replay-heading,
