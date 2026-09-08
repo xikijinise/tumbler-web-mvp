@@ -284,18 +284,38 @@ function isMobileRenderingEnvironment() {
 }
 
 function drawJellyPath(context: CanvasRenderingContext2D, wobble = 0, bulge = 0) {
-  const sway = wobble * 6;
-  const left = bulge * 9;
-  const right = bulge * 6;
+  const sway = wobble * 5;
+  const lowerBulge = bulge * 8;
   context.beginPath();
-  context.moveTo(204 + sway, 48);
-  context.bezierCurveTo(145 + sway, 28, 83 + left, 52, 51 + left, 114);
-  context.bezierCurveTo(20 + left, 178, 33 + left, 284, 60 + left, 355);
-  context.bezierCurveTo(77 + left, 405, 111, 443, 157, 460);
-  context.bezierCurveTo(180, 469, 222, 470, 246, 460);
-  context.bezierCurveTo(299 + right, 440, 332 + right, 398, 346 + right, 342);
-  context.bezierCurveTo(370 + right, 248, 371 + right, 168, 346 + right, 111);
-  context.bezierCurveTo(321 + right, 54, 266 - sway, 29, 204 + sway, 48);
+  context.moveTo(200 + sway, 32);
+  context.bezierCurveTo(145 + sway, 18, 94, 35, 68, 79);
+  context.bezierCurveTo(51, 108, 51, 140, 52, 163);
+  context.bezierCurveTo(52, 176, 63, 181, 78, 185);
+  context.bezierCurveTo(84, 187, 88, 194, 85, 207);
+  context.bezierCurveTo(73 + lowerBulge, 236, 60 + lowerBulge, 271, 51 + lowerBulge, 321);
+  context.bezierCurveTo(40 + lowerBulge, 378, 43 + lowerBulge, 430, 62 + lowerBulge, 464);
+  context.bezierCurveTo(86 + lowerBulge, 502, 138, 514, 200, 516);
+  context.bezierCurveTo(262 - lowerBulge, 514, 314 - lowerBulge, 502, 338 - lowerBulge, 464);
+  context.bezierCurveTo(357 - lowerBulge, 430, 360 - lowerBulge, 378, 349 - lowerBulge, 321);
+  context.bezierCurveTo(340 - lowerBulge, 271, 327 - lowerBulge, 236, 315, 207);
+  context.bezierCurveTo(312, 194, 316, 187, 322, 185);
+  context.bezierCurveTo(337, 181, 348, 176, 348, 163);
+  context.bezierCurveTo(349, 140, 349, 108, 332, 79);
+  context.bezierCurveTo(306, 35, 255 - sway, 18, 200 + sway, 32);
+  context.closePath();
+}
+
+function drawJellyCapPath(context: CanvasRenderingContext2D, wobble = 0) {
+  const sway = wobble * 4;
+  context.beginPath();
+  context.moveTo(52 + sway, 164);
+  context.bezierCurveTo(51, 112, 55, 83, 78, 56);
+  context.bezierCurveTo(105, 25, 148 + sway, 18, 200 + sway, 32);
+  context.bezierCurveTo(252 + sway, 18, 295, 25, 322, 56);
+  context.bezierCurveTo(345, 83, 349, 112, 348 - sway, 164);
+  context.bezierCurveTo(348, 176, 337, 181, 322, 185);
+  context.bezierCurveTo(281, 190, 119, 190, 78, 185);
+  context.bezierCurveTo(63, 181, 52, 176, 52 + sway, 164);
   context.closePath();
 }
 
@@ -363,7 +383,7 @@ function drawFusedFallback(
   time: number,
 ) {
   const width = 400;
-  const height = 520;
+  const height = 540;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
@@ -375,9 +395,9 @@ function drawFusedFallback(
 
   const impact = clamp(motion.impact, 0, 1.35);
   const idleWobble = Math.sin(time * 0.0024) * 0.014;
-  const tilt = (motion.angle * Math.PI) / 180 * 0.7 + idleWobble;
-  const squash = 1 + impact * 0.2;
-  const stretch = 1 - impact * 0.13;
+  const tilt = (motion.angle * Math.PI) / 180 * 0.65 + idleWobble;
+  const squash = 1 + impact * 0.26;
+  const stretch = 1 - impact * 0.17;
   const driftX = clamp(motion.x * 1.08, -24, 24);
   const driftY = clamp(motion.y * 0.64, -18, 18);
   const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.02;
@@ -390,7 +410,7 @@ function drawFusedFallback(
   context.scale(squash, stretch);
   context.translate(-width / 2, -height / 2);
 
-  // Grounded soft shadow: the body is a single volume resting on the table.
+  // Grounded soft shadow: the cap, body, and weighted base are one volume.
   drawJellyPath(context, shapeWobble, shapeBulge);
   context.save();
   context.translate(0, 12);
@@ -405,18 +425,32 @@ function drawFusedFallback(
   context.save();
   context.clip();
 
-  // The color passes deliberately use a bright center and dark rims, matching
-  // the volumetric look of a translucent, glossy jelly rather than a flat pill.
-  const bodyGradient = context.createLinearGradient(44, 26, 350, 480);
-  bodyGradient.addColorStop(0, "rgba(255, 225, 237, 0.84)");
-  bodyGradient.addColorStop(0.17, "rgba(255, 169, 198, 0.88)");
-  bodyGradient.addColorStop(0.52, "rgba(236, 106, 153, 0.86)");
-  bodyGradient.addColorStop(0.82, "rgba(201, 55, 111, 0.9)");
-  bodyGradient.addColorStop(1, "rgba(148, 31, 79, 0.91)");
+  // Preserve the recognizable tumbler silhouette with continuous translucent
+  // color changes: red jelly crown, soft body, and a darker weighted bottom.
+  const bodyGradient = context.createLinearGradient(0, 28, 0, 520);
+  bodyGradient.addColorStop(0, "rgba(206, 55, 91, 0.82)");
+  bodyGradient.addColorStop(0.2, "rgba(239, 91, 130, 0.84)");
+  bodyGradient.addColorStop(0.34, "rgba(255, 183, 204, 0.82)");
+  bodyGradient.addColorStop(0.67, "rgba(238, 111, 159, 0.87)");
+  bodyGradient.addColorStop(0.84, "rgba(185, 54, 112, 0.9)");
+  bodyGradient.addColorStop(1, "rgba(76, 19, 65, 0.94)");
   context.fillStyle = bodyGradient;
   context.fillRect(0, 0, width, height);
 
-  const volumeShade = context.createRadialGradient(200, 208, 30, 200, 254, 272);
+  const capGradient = context.createLinearGradient(80, 26, 318, 193);
+  capGradient.addColorStop(0, "rgba(255, 142, 165, 0.36)");
+  capGradient.addColorStop(0.34, "rgba(218, 48, 87, 0.36)");
+  capGradient.addColorStop(0.82, "rgba(164, 30, 72, 0.18)");
+  capGradient.addColorStop(1, "rgba(255, 184, 204, 0.03)");
+  context.save();
+  context.globalCompositeOperation = "screen";
+  context.clip();
+  drawJellyCapPath(context, shapeWobble);
+  context.fillStyle = capGradient;
+  context.fill();
+  context.restore();
+
+  const volumeShade = context.createRadialGradient(200, 210, 28, 200, 280, 284);
   volumeShade.addColorStop(0, "rgba(255, 255, 255, 0)");
   volumeShade.addColorStop(0.55, "rgba(126, 16, 66, 0.05)");
   volumeShade.addColorStop(1, "rgba(53, 5, 36, 0.34)");
@@ -424,7 +458,7 @@ function drawFusedFallback(
   context.fillStyle = volumeShade;
   context.fillRect(0, 0, width, height);
 
-  const innerScatter = context.createRadialGradient(190, 242, 10, 190, 252, 250);
+  const innerScatter = context.createRadialGradient(192, 272, 10, 192, 282, 274);
   innerScatter.addColorStop(0, "rgba(255, 245, 249, 0.36)");
   innerScatter.addColorStop(0.5, "rgba(255, 173, 202, 0.16)");
   innerScatter.addColorStop(1, "rgba(118, 19, 68, 0.12)");
@@ -432,18 +466,27 @@ function drawFusedFallback(
   context.fillStyle = innerScatter;
   context.fillRect(0, 0, width, height);
 
+  const weightedBase = context.createLinearGradient(0, 376, 0, 520);
+  weightedBase.addColorStop(0, "rgba(72, 13, 59, 0)");
+  weightedBase.addColorStop(0.3, "rgba(71, 13, 59, 0.1)");
+  weightedBase.addColorStop(0.76, "rgba(47, 9, 48, 0.36)");
+  weightedBase.addColorStop(1, "rgba(27, 6, 33, 0.58)");
+  context.globalCompositeOperation = "multiply";
+  context.fillStyle = weightedBase;
+  context.fillRect(0, 0, width, height);
+
   const dogX = 91 + Math.sin(time * 0.004) * impact * 3;
-  const dogY = 143 + motion.y * 0.15;
-  const dogWidth = 224 * (1 + impact * 0.04);
-  const dogHeight = 198 * (1 - impact * 0.035);
+  const dogY = 211 + motion.y * 0.15;
+  const dogWidth = 218 * (1 + impact * 0.08);
+  const dogHeight = 180 * (1 - impact * 0.06);
   if (dogCanvas) {
-    const dogHaze = context.createRadialGradient(200, 226, 20, 200, 226, 150);
+    const dogHaze = context.createRadialGradient(200, 298, 20, 200, 298, 152);
     dogHaze.addColorStop(0, "rgba(255, 219, 231, 0.2)");
     dogHaze.addColorStop(0.68, "rgba(255, 151, 188, 0.06)");
     dogHaze.addColorStop(1, "rgba(255, 151, 188, 0)");
     context.globalCompositeOperation = "screen";
     context.fillStyle = dogHaze;
-    context.fillRect(48, 92, 304, 292);
+    context.fillRect(48, 176, 304, 274);
 
     context.globalCompositeOperation = "multiply";
     context.save();
@@ -454,23 +497,23 @@ function drawFusedFallback(
 
     context.globalCompositeOperation = "source-over";
     context.save();
-    context.filter = "blur(0.9px) saturate(0.78) contrast(0.94)";
-    context.globalAlpha = 0.68;
+    context.filter = "blur(1.1px) saturate(0.72) contrast(0.9)";
+    context.globalAlpha = 0.62;
     context.drawImage(dogCanvas, dogX, dogY, dogWidth, dogHeight);
     context.restore();
   }
 
   // A front refraction film crosses the dog and ties it into the same volume.
-  const jellyVeil = context.createLinearGradient(66, 74, 340, 466);
-  jellyVeil.addColorStop(0, "rgba(255, 239, 246, 0.25)");
-  jellyVeil.addColorStop(0.42, "rgba(255, 192, 214, 0.1)");
-  jellyVeil.addColorStop(0.78, "rgba(230, 106, 153, 0.12)");
-  jellyVeil.addColorStop(1, "rgba(165, 35, 88, 0.2)");
+  const jellyVeil = context.createLinearGradient(58, 70, 342, 486);
+  jellyVeil.addColorStop(0, "rgba(255, 239, 246, 0.3)");
+  jellyVeil.addColorStop(0.38, "rgba(255, 192, 214, 0.1)");
+  jellyVeil.addColorStop(0.76, "rgba(230, 106, 153, 0.14)");
+  jellyVeil.addColorStop(1, "rgba(112, 22, 67, 0.22)");
   context.globalCompositeOperation = "source-over";
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
 
-  const sheen = context.createRadialGradient(112, 93, 4, 140, 128, 196);
+  const sheen = context.createRadialGradient(118, 73, 4, 139, 106, 190);
   sheen.addColorStop(0, "rgba(255, 255, 255, 0.78)");
   sheen.addColorStop(0.36, "rgba(255, 242, 247, 0.3)");
   sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -478,7 +521,7 @@ function drawFusedFallback(
   context.fillStyle = sheen;
   context.fillRect(0, 0, width, height);
 
-  const lowerCaustic = context.createRadialGradient(200, 447, 4, 200, 447, 124);
+  const lowerCaustic = context.createRadialGradient(200, 478, 4, 200, 478, 136);
   lowerCaustic.addColorStop(0, "rgba(255, 224, 235, 0.42)");
   lowerCaustic.addColorStop(0.5, "rgba(255, 189, 216, 0.13)");
   lowerCaustic.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -487,7 +530,7 @@ function drawFusedFallback(
 
   // Tint the artwork again after the face is drawn. The color pass follows the
   // body curvature and removes the last flat, printed-surface impression.
-  const submergedColor = context.createLinearGradient(54, 100, 350, 396);
+  const submergedColor = context.createLinearGradient(54, 176, 350, 450);
   submergedColor.addColorStop(0, "rgba(255, 226, 238, 0.12)");
   submergedColor.addColorStop(0.52, "rgba(236, 93, 148, 0.19)");
   submergedColor.addColorStop(1, "rgba(124, 24, 68, 0.22)");
@@ -500,28 +543,45 @@ function drawFusedFallback(
   context.lineCap = "round";
   context.lineWidth = 16;
   context.beginPath();
-  context.moveTo(103, 96);
-  context.bezierCurveTo(72, 154, 78, 244, 108, 310);
+  context.moveTo(104, 72);
+  context.bezierCurveTo(74, 124, 78, 184, 92, 205);
+  context.bezierCurveTo(70, 264, 76, 356, 104, 407);
   context.stroke();
 
   context.globalAlpha = 0.22;
   context.lineWidth = 9;
   context.beginPath();
-  context.moveTo(137, 146);
-  context.bezierCurveTo(174, 174, 238, 182, 279, 160);
+  context.moveTo(139, 234);
+  context.bezierCurveTo(178, 258, 236, 267, 278, 246);
   context.stroke();
 
   context.globalAlpha = 0.28;
   context.lineWidth = 7;
   context.beginPath();
-  context.moveTo(306, 116);
-  context.bezierCurveTo(333, 184, 329, 276, 306, 336);
+  context.moveTo(306, 88);
+  context.bezierCurveTo(332, 142, 328, 190, 310, 214);
+  context.bezierCurveTo(332, 280, 328, 354, 306, 410);
+  context.stroke();
+
+  // Soft cap lip and weighted-base reflection keep the old tumbler readable
+  // without splitting the object into separate render layers.
+  context.globalAlpha = 0.32;
+  context.lineWidth = 8;
+  context.beginPath();
+  context.moveTo(62, 176);
+  context.bezierCurveTo(124, 191, 276, 191, 338, 176);
+  context.stroke();
+  context.globalAlpha = 0.2;
+  context.lineWidth = 5;
+  context.beginPath();
+  context.moveTo(58, 421);
+  context.bezierCurveTo(126, 448, 274, 448, 342, 421);
   context.stroke();
   context.restore();
 
   drawJellyPath(context, shapeWobble, shapeBulge);
-  context.strokeStyle = "rgba(255, 226, 237, 0.66)";
-  context.lineWidth = 2;
+  context.strokeStyle = "rgba(255, 226, 237, 0.72)";
+  context.lineWidth = 2.2;
   context.shadowColor = "rgba(255, 188, 214, 0.24)";
   context.shadowBlur = 10;
   context.stroke();
