@@ -202,7 +202,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     () => new THREE.LatheGeometry(jellyProfile, 128),
     [jellyProfile],
   );
-  const dogTexture = useLoader(THREE.TextureLoader, "/custom-character.png");
+  const dogTexture = useLoader(THREE.TextureLoader, "./custom-character.png");
   const combinedJellyGeometry = useMemo(() => {
     const projector = new THREE.Mesh(jellyGeometry);
     const dogDecalGeometry = new DecalGeometry(
