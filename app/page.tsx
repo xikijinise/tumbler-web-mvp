@@ -315,11 +315,11 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
       continue;
     }
 
-    const jellyTint = 0.16;
+    const jellyTint = 0.28;
     pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
     pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
     pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
-    pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.82);
+    pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.7);
   }
   sourceContext.putImageData(pixels, 0, 0);
   return source;
@@ -358,10 +358,10 @@ function drawFusedFallback(
 
   drawJellyPath(context);
   context.save();
-  context.shadowColor = "rgba(190, 55, 105, 0.24)";
-  context.shadowBlur = 32;
-  context.shadowOffsetY = 28;
-  context.fillStyle = "rgba(224, 92, 139, 0.9)";
+  context.shadowColor = "rgba(155, 33, 86, 0.32)";
+  context.shadowBlur = 38;
+  context.shadowOffsetY = 34;
+  context.fillStyle = "rgba(224, 92, 139, 0.82)";
   context.fill();
   context.restore();
 
@@ -369,11 +369,19 @@ function drawFusedFallback(
   context.save();
   context.clip();
   const bodyGradient = context.createLinearGradient(48, 20, 310, 478);
-  bodyGradient.addColorStop(0, "rgba(255, 207, 222, 0.92)");
-  bodyGradient.addColorStop(0.24, "rgba(246, 146, 177, 0.93)");
-  bodyGradient.addColorStop(0.66, "rgba(226, 101, 145, 0.92)");
-  bodyGradient.addColorStop(1, "rgba(184, 54, 106, 0.9)");
+  bodyGradient.addColorStop(0, "rgba(255, 221, 232, 0.82)");
+  bodyGradient.addColorStop(0.24, "rgba(246, 146, 177, 0.84)");
+  bodyGradient.addColorStop(0.66, "rgba(226, 101, 145, 0.84)");
+  bodyGradient.addColorStop(1, "rgba(184, 54, 106, 0.82)");
   context.fillStyle = bodyGradient;
+  context.fillRect(0, 0, width, height);
+
+  const volumeShade = context.createRadialGradient(172, 230, 30, 180, 250, 238);
+  volumeShade.addColorStop(0, "rgba(255, 255, 255, 0)");
+  volumeShade.addColorStop(0.58, "rgba(121, 20, 72, 0.04)");
+  volumeShade.addColorStop(1, "rgba(66, 6, 43, 0.32)");
+  context.globalCompositeOperation = "multiply";
+  context.fillStyle = volumeShade;
   context.fillRect(0, 0, width, height);
 
   const innerScatter = context.createRadialGradient(168, 258, 8, 176, 260, 250);
@@ -386,14 +394,19 @@ function drawFusedFallback(
 
   const dogCanvas = makeFusedDogCanvas(image);
   context.globalCompositeOperation = "source-over";
-  context.globalAlpha = 0.76;
+  context.save();
+  context.filter = "blur(8px)";
+  context.globalAlpha = 0.2;
+  context.drawImage(dogCanvas, 77, 126, 206, 206);
+  context.restore();
+  context.globalAlpha = 0.68;
   context.drawImage(dogCanvas, 77, 126, 206, 206);
   context.globalAlpha = 1;
 
   const jellyVeil = context.createLinearGradient(64, 90, 292, 420);
-  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.16)");
-  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.11)");
-  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.12)");
+  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.2)");
+  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.14)");
+  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.16)");
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
 
@@ -418,6 +431,12 @@ function drawFusedFallback(
   context.beginPath();
   context.ellipse(112, 182, 24, 92, -0.34, 0, Math.PI * 2);
   context.fillStyle = "rgba(255, 255, 255, 0.72)";
+  context.fill();
+
+  context.globalAlpha = 0.55;
+  context.beginPath();
+  context.ellipse(184, 454, 72, 13, 0, 0, Math.PI * 2);
+  context.fillStyle = "rgba(255, 206, 224, 0.42)";
   context.fill();
   context.restore();
 
