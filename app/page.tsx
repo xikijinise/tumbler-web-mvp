@@ -881,7 +881,7 @@ export default function Home() {
                 <strong>SETTINGS / CUSTOMIZE</strong>
                 <button onClick={() => setSettingsOpen(false)} type="button" aria-label="关闭设置">×</button>
               </div>
-              <p className="settings-intro">只调整互动时的提示语，果冻外形保持为一个完整的连续模型。</p>
+              <p className="settings-intro">只调整互动时的提示语，果冻主体和狗头保持为一个完整的连续模型。</p>
               <label className="settings-field">
                 <span>不倒翁台词</span>
                 <textarea
