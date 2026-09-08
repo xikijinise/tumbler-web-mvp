@@ -405,9 +405,9 @@ function drawFusedFallback(
   const tilt = (motion.angle * Math.PI) / 180 * 0.65 + idleWobble;
   const squash = 1 + impact * 0.26;
   const stretch = 1 - impact * 0.17;
-  const driftX = clamp(motion.x * 1.08, -24, 24);
-  const driftY = clamp(motion.y * 0.64, -18, 18);
-  const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.02;
+  const driftX = clamp(motion.x, -116, 116);
+  const driftY = clamp(motion.y, -74, 74);
+  const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.008;
   const shapeBulge =
     Math.sin(time * 0.006 + 1.2) * 0.8 + motion.y * 0.032 + Math.sin(time * 0.032) * impact * 1.8;
 
@@ -654,8 +654,8 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
       if (!active) return;
       drawFusedFallback(canvas, dogCanvas, motionRef.current, time);
       motionRef.current.angle *= 0.965;
-      motionRef.current.x *= 0.955;
-      motionRef.current.y *= 0.955;
+      motionRef.current.x *= 0.982;
+      motionRef.current.y *= 0.982;
       motionRef.current.impact *= 0.955;
       animationFrame = window.requestAnimationFrame(render);
     };
@@ -932,7 +932,6 @@ export default function Home() {
     autoReturnArmedRef.current = false;
     stopPointerRepeat();
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "return" });
-    setFallbackMotion({ ...INITIAL_FALLBACK_MOTION });
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("自动归位");
@@ -1163,8 +1162,8 @@ export default function Home() {
       });
       setFallbackMotion((current) => ({
         angle: clamp(current.angle + dx * 0.22, -18, 18),
-        x: clamp(current.x + dx * 0.08, -22, 22),
-        y: clamp(current.y - dy * 0.06, -16, 16),
+        x: clamp(current.x + dx * 0.9, -116, 116),
+        y: clamp(current.y - dy * 0.72, -74, 74),
         impact: clamp(current.impact + (Math.abs(dx) + Math.abs(dy)) / 80, 0, 1.3),
       }));
     }
