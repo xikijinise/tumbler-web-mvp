@@ -73,28 +73,52 @@ function clamp(value: number, min: number, max: number) {
 function createFusedDogTexture(sourceTexture: THREE.Texture) {
   const image = sourceTexture.image as HTMLImageElement;
   const canvas = document.createElement("canvas");
-  canvas.width = image.naturalWidth || image.width;
-  canvas.height = image.naturalHeight || image.height;
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  canvas.width = sourceWidth;
+  canvas.height = Math.max(1, Math.round(sourceHeight * 0.78));
   const context = canvas.getContext("2d");
   if (!context || !canvas.width || !canvas.height) {
     throw new Error("Unable to prepare the dog head texture");
   }
 
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(
+    image,
+    Math.round(sourceWidth * 0.04),
+    0,
+    Math.round(sourceWidth * 0.92),
+    Math.round(sourceHeight * 0.78),
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  for (let index = 0; index < pixels.data.length; index += 4) {
-    const red = pixels.data[index];
-    const green = pixels.data[index + 1];
-    const blue = pixels.data[index + 2];
-    const isYellowBackdrop =
-      red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
-    if (isYellowBackdrop) pixels.data[index + 3] = 0;
-    if (!isYellowBackdrop) {
-      const jellyTint = 0.52;
-      pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
-      pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
-      pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
-      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.58);
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const index = (y * canvas.width + x) * 4;
+      const red = pixels.data[index];
+      const green = pixels.data[index + 1];
+      const blue = pixels.data[index + 2];
+      const isYellowBackdrop =
+        red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
+      if (isYellowBackdrop) {
+        pixels.data[index + 3] = 0;
+        continue;
+      }
+
+      const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
+      const shade = 0.42 + luminance * 0.72;
+      const darkFeature = luminance < 0.2;
+      pixels.data[index] = Math.round((darkFeature ? red * 0.58 : 236 * shade) * 0.92);
+      pixels.data[index + 1] = Math.round(darkFeature ? green * 0.56 : 105 * shade);
+      pixels.data[index + 2] = Math.round(darkFeature ? blue * 0.62 : 147 * shade);
+      const dx = (x / canvas.width - 0.5) / 0.53;
+      const dy = (y / canvas.height - 0.42) / 0.66;
+      const edge = Math.hypot(dx, dy);
+      const edgeFade = Math.min(1, Math.max(0.32, 1 - Math.max(0, edge - 0.54) * 0.8));
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.72 * edgeFade);
     }
   }
   context.putImageData(pixels, 0, 0);
@@ -213,23 +237,22 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
   const jellyMotionRef = useRef(0);
   const jellyProfile = useMemo(
     () => [
-      new THREE.Vector2(0.015, -2.08),
-      new THREE.Vector2(0.28, -2.07),
-      new THREE.Vector2(0.62, -1.99),
-      new THREE.Vector2(0.91, -1.8),
-      new THREE.Vector2(1.12, -1.52),
-      new THREE.Vector2(1.23, -1.17),
-      new THREE.Vector2(1.26, -0.68),
-      new THREE.Vector2(1.25, -0.18),
-      new THREE.Vector2(1.2, 0.35),
-      new THREE.Vector2(1.11, 0.82),
-      new THREE.Vector2(0.99, 1.2),
-      new THREE.Vector2(0.89, 1.48),
-      new THREE.Vector2(0.86, 1.7),
-      new THREE.Vector2(0.76, 1.91),
-      new THREE.Vector2(0.58, 2.1),
-      new THREE.Vector2(0.33, 2.23),
-      new THREE.Vector2(0.015, 2.29),
+      new THREE.Vector2(0.015, -2.02),
+      new THREE.Vector2(0.33, -2.01),
+      new THREE.Vector2(0.7, -1.92),
+      new THREE.Vector2(1.03, -1.73),
+      new THREE.Vector2(1.28, -1.45),
+      new THREE.Vector2(1.43, -1.09),
+      new THREE.Vector2(1.48, -0.62),
+      new THREE.Vector2(1.47, -0.12),
+      new THREE.Vector2(1.42, 0.4),
+      new THREE.Vector2(1.3, 0.88),
+      new THREE.Vector2(1.13, 1.29),
+      new THREE.Vector2(0.96, 1.58),
+      new THREE.Vector2(0.82, 1.8),
+      new THREE.Vector2(0.61, 1.98),
+      new THREE.Vector2(0.32, 2.08),
+      new THREE.Vector2(0.015, 2.11),
     ],
     [],
   );
@@ -247,9 +270,9 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     const projector = new THREE.Mesh(jellyGeometry);
     const dogDecalGeometry = new DecalGeometry(
       projector,
-      new THREE.Vector3(0, 1.12, 1.12),
+      new THREE.Vector3(0, 0.86, 1.3),
       new THREE.Euler(0, 0, 0),
-      new THREE.Vector3(1.2, 1.2, 0.26),
+      new THREE.Vector3(1.42, 1.14, 0.3),
     );
     const mergedGeometry = mergeGeometries(
       [jellyGeometry, dogDecalGeometry],
@@ -487,34 +510,33 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
           <meshPhysicalMaterial
             attach="material-0"
             color="#ef789e"
-            roughness={0.14}
+            roughness={0.08}
             metalness={0}
-            clearcoat={0.72}
-            clearcoatRoughness={0.12}
-            transmission={0.42}
-            thickness={1.55}
-            ior={1.42}
+            clearcoat={0.88}
+            clearcoatRoughness={0.08}
+            transmission={0.7}
+            thickness={1.7}
+            ior={1.38}
             attenuationColor="#ffd2df"
-            attenuationDistance={2.4}
+            attenuationDistance={2.1}
             transparent
-            opacity={0.9}
+            opacity={0.86}
           />
           <meshPhysicalMaterial
             attach="material-1"
             map={fusedDogTexture}
-            color="#ffc6d8"
-            roughness={0.15}
+            color="#f2a0ba"
+            roughness={0.28}
             metalness={0}
-            clearcoat={0.72}
-            clearcoatRoughness={0.1}
-            transmission={0.42}
-            thickness={1.35}
-            ior={1.42}
+            clearcoat={0.24}
+            clearcoatRoughness={0.2}
+            transmission={0.64}
+            thickness={1.15}
+            ior={1.38}
             transparent
-            opacity={0.68}
+            opacity={0.55}
             alphaTest={0.01}
             depthWrite={false}
-            toneMapped={false}
           />
         </mesh>
       </group>
