@@ -114,6 +114,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(scene, /ACTION_FORCE_GAIN/);
   assert.match(scene, /jellyProfile/);
   assert.match(scene, /custom-character\.png/);
+  assert.match(scene, /TextureLoader, "\.\/custom-character\.png"/);
   assert.match(scene, /DecalGeometry/);
   assert.match(scene, /mergeGeometries/);
   assert.match(scene, /combinedJellyGeometry/);
