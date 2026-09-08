@@ -258,13 +258,105 @@ function canUseWebGL() {
   return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
 }
 
+function drawJellyPath(context: CanvasRenderingContext2D) {
+  context.beginPath();
+  context.moveTo(180, 22);
+  context.bezierCurveTo(105, 18, 50, 65, 48, 150);
+  context.bezierCurveTo(46, 222, 52, 328, 86, 414);
+  context.bezierCurveTo(106, 464, 143, 478, 180, 478);
+  context.bezierCurveTo(231, 478, 269, 459, 286, 411);
+  context.bezierCurveTo(316, 325, 314, 221, 312, 145);
+  context.bezierCurveTo(310, 65, 254, 18, 180, 22);
+  context.closePath();
+}
+
+function makeFusedDogCanvas(image: HTMLImageElement) {
+  const source = document.createElement("canvas");
+  source.width = image.naturalWidth || image.width;
+  source.height = image.naturalHeight || image.height;
+  const sourceContext = source.getContext("2d");
+  if (!sourceContext || !source.width || !source.height) return source;
+
+  sourceContext.drawImage(image, 0, 0, source.width, source.height);
+  const pixels = sourceContext.getImageData(0, 0, source.width, source.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const red = pixels.data[index];
+    const green = pixels.data[index + 1];
+    const blue = pixels.data[index + 2];
+    const isYellowBackdrop =
+      red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
+    if (isYellowBackdrop) pixels.data[index + 3] = 0;
+  }
+  sourceContext.putImageData(pixels, 0, 0);
+  return source;
+}
+
+function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
+  const width = 360;
+  const height = 500;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = width * pixelRatio;
+  canvas.height = height * pixelRatio;
+  canvas.style.aspectRatio = `${width} / ${height}`;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  drawJellyPath(context);
+  context.save();
+  context.shadowColor = "rgba(216, 94, 131, 0.22)";
+  context.shadowBlur = 28;
+  context.shadowOffsetY = 24;
+  context.fillStyle = "rgba(239, 120, 158, 0.96)";
+  context.fill();
+  context.restore();
+
+  drawJellyPath(context);
+  context.save();
+  context.clip();
+  const bodyGradient = context.createLinearGradient(52, 35, 298, 470);
+  bodyGradient.addColorStop(0, "rgba(255, 183, 205, 0.96)");
+  bodyGradient.addColorStop(0.52, "rgba(239, 120, 158, 0.94)");
+  bodyGradient.addColorStop(1, "rgba(226, 111, 151, 0.92)");
+  context.fillStyle = bodyGradient;
+  context.fillRect(0, 0, width, height);
+
+  const dogCanvas = makeFusedDogCanvas(image);
+  context.globalAlpha = 0.94;
+  context.drawImage(dogCanvas, 91, 151, 178, 178);
+
+  const sheen = context.createRadialGradient(112, 105, 4, 126, 110, 155);
+  sheen.addColorStop(0, "rgba(255,255,255,0.48)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  context.globalCompositeOperation = "screen";
+  context.fillStyle = sheen;
+  context.fillRect(0, 0, width, height);
+  context.restore();
+
+  drawJellyPath(context);
+  context.strokeStyle = "rgba(216, 94, 131, 0.22)";
+  context.lineWidth = 1;
+  context.stroke();
+}
+
 function JellyFallback() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const image = new Image();
+    image.onload = () => drawFusedFallback(canvas, image);
+    image.src = "./custom-character.png";
+    return () => {
+      image.onload = null;
+    };
+  }, []);
+
   return (
     <div className="three-fallback" role="img" aria-label="果冻不倒翁预览">
-      <div className="three-fallback-body">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static fallback asset must follow the Pages base path. */}
-        <img src="./custom-character.png" alt="" />
-      </div>
+      <canvas ref={canvasRef} className="three-fallback-body" aria-hidden="true" />
     </div>
   );
 }
