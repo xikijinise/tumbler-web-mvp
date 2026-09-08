@@ -371,25 +371,25 @@ function drawFusedFallback(
   context.save();
   context.clip();
   const bodyGradient = context.createLinearGradient(48, 20, 310, 478);
-  bodyGradient.addColorStop(0, "rgba(255, 221, 232, 0.82)");
-  bodyGradient.addColorStop(0.24, "rgba(246, 146, 177, 0.84)");
-  bodyGradient.addColorStop(0.66, "rgba(226, 101, 145, 0.84)");
-  bodyGradient.addColorStop(1, "rgba(184, 54, 106, 0.82)");
+  bodyGradient.addColorStop(0, "rgba(255, 221, 232, 0.62)");
+  bodyGradient.addColorStop(0.24, "rgba(246, 146, 177, 0.68)");
+  bodyGradient.addColorStop(0.66, "rgba(226, 101, 145, 0.7)");
+  bodyGradient.addColorStop(1, "rgba(184, 54, 106, 0.68)");
   context.fillStyle = bodyGradient;
   context.fillRect(0, 0, width, height);
 
   const volumeShade = context.createRadialGradient(172, 230, 30, 180, 250, 238);
   volumeShade.addColorStop(0, "rgba(255, 255, 255, 0)");
   volumeShade.addColorStop(0.58, "rgba(121, 20, 72, 0.04)");
-  volumeShade.addColorStop(1, "rgba(66, 6, 43, 0.32)");
+  volumeShade.addColorStop(1, "rgba(66, 6, 43, 0.24)");
   context.globalCompositeOperation = "multiply";
   context.fillStyle = volumeShade;
   context.fillRect(0, 0, width, height);
 
   const innerScatter = context.createRadialGradient(168, 258, 8, 176, 260, 250);
-  innerScatter.addColorStop(0, "rgba(255, 239, 244, 0.28)");
-  innerScatter.addColorStop(0.58, "rgba(255, 155, 190, 0.1)");
-  innerScatter.addColorStop(1, "rgba(122, 24, 72, 0.22)");
+  innerScatter.addColorStop(0, "rgba(255, 239, 244, 0.34)");
+  innerScatter.addColorStop(0.58, "rgba(255, 155, 190, 0.12)");
+  innerScatter.addColorStop(1, "rgba(122, 24, 72, 0.16)");
   context.globalCompositeOperation = "screen";
   context.fillStyle = innerScatter;
   context.fillRect(0, 0, width, height);
@@ -406,24 +406,24 @@ function drawFusedFallback(
     context.fillStyle = dogHaze;
     context.fillRect(44, 96, 272, 280);
 
-    context.globalCompositeOperation = "multiply";
+    context.globalCompositeOperation = "source-over";
     context.save();
-    context.filter = "blur(2.6px) saturate(0.72)";
-    context.globalAlpha = 0.32;
+    context.filter = "blur(2.2px) saturate(0.72)";
+    context.globalAlpha = 0.24;
     context.drawImage(dogCanvas, dogX, dogY, dogSize, dogSize);
     context.restore();
 
     context.save();
-    context.filter = "blur(0.8px) saturate(0.78)";
-    context.globalAlpha = 0.62;
+    context.filter = "blur(0.55px) saturate(0.82)";
+    context.globalAlpha = 0.72;
     context.drawImage(dogCanvas, dogX, dogY, dogSize, dogSize);
     context.restore();
   }
 
   const jellyVeil = context.createLinearGradient(64, 90, 292, 420);
-  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.28)");
-  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.2)");
-  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.22)");
+  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.2)");
+  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.13)");
+  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.16)");
   context.globalCompositeOperation = "source-over";
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
