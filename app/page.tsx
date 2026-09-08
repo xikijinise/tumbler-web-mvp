@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
-import {
-  TumblerScene,
-  type PhysicsAction,
-  type PhysicsCommand,
-  type PhysicsState,
-} from "./tumbler-scene";
+import type { PhysicsAction, PhysicsCommand, PhysicsState } from "./tumbler-scene";
+
+const ThreeCanvas = lazy(async () => {
+  const fiberModule = await import("@react-three/fiber");
+  return { default: fiberModule.Canvas };
+});
+
+const ThreeTumblerScene = lazy(async () => {
+  const sceneModule = await import("./tumbler-scene");
+  return { default: sceneModule.TumblerScene };
+});
 
 type ActionId =
   | "left"
@@ -919,25 +923,27 @@ export default function Home() {
         <div className="subject-zone" aria-hidden="true">
           <div className="three-stage" data-physics="react-three-rapier" data-x-position={display.x.toFixed(2)}>
             {webglStatus === "available" ? (
-              <Canvas
-                dpr={[1, 2]}
-                camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
-                shadows
-                gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-                fallback={<JellyFallback />}
-                onCreated={({ gl }) => {
-                  gl.setClearColor(0x000000, 0);
-                  gl.outputColorSpace = THREE.SRGBColorSpace;
-                  gl.toneMapping = THREE.ACESFilmicToneMapping;
-                  gl.toneMappingExposure = 1.12;
-                }}
-                style={{ pointerEvents: "none" }}
-              >
-                <TumblerScene
-                  commandQueueRef={physicsCommandQueueRef}
-                  onState={setDisplay}
-                />
-              </Canvas>
+              <Suspense fallback={<JellyFallback />}>
+                <ThreeCanvas
+                  dpr={[1, 2]}
+                  camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
+                  shadows
+                  gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+                  fallback={<JellyFallback />}
+                  onCreated={({ gl }) => {
+                    gl.setClearColor(0x000000, 0);
+                    gl.outputColorSpace = THREE.SRGBColorSpace;
+                    gl.toneMapping = THREE.ACESFilmicToneMapping;
+                    gl.toneMappingExposure = 1.12;
+                  }}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <ThreeTumblerScene
+                    commandQueueRef={physicsCommandQueueRef}
+                    onState={setDisplay}
+                  />
+                </ThreeCanvas>
+              </Suspense>
             ) : (
               <JellyFallback />
             )}
