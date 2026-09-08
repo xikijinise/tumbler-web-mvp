@@ -146,7 +146,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(css, /\.subject-zone[\s\S]*inset:\s*0/);
   assert.match(css, /perspective:\s*1100px/);
   assert.match(css, /\.three-stage/);
-  assert.match(css, /\.three-stage canvas/);
+  assert.match(css, /\.three-stage > canvas/);
   assert.match(css, /\.three-fallback/);
   assert.doesNotMatch(css, /board-crosshair|impact-rings|ground-marker|impact-wave/);
   assert.doesNotMatch(css, /is-flashing|filter:\s*brightness/);
