@@ -283,15 +283,16 @@ function isMobileRenderingEnvironment() {
   return mobileUserAgent || coarsePointer || narrowViewport;
 }
 
-function drawJellyPath(context: CanvasRenderingContext2D) {
+function drawJellyPath(context: CanvasRenderingContext2D, wobble = 0) {
+  const sway = wobble * 7;
   context.beginPath();
-  context.moveTo(180, 22);
-  context.bezierCurveTo(105, 18, 50, 65, 48, 150);
-  context.bezierCurveTo(46, 222, 52, 328, 86, 414);
-  context.bezierCurveTo(106, 464, 143, 478, 180, 478);
-  context.bezierCurveTo(231, 478, 269, 459, 286, 411);
-  context.bezierCurveTo(316, 325, 314, 221, 312, 145);
-  context.bezierCurveTo(310, 65, 254, 18, 180, 22);
+  context.moveTo(180 + sway, 22);
+  context.bezierCurveTo(111 + sway, 7, 47, 40, 31, 121);
+  context.bezierCurveTo(14, 210, 31, 326, 63, 411);
+  context.bezierCurveTo(82, 464, 127, 482, 180, 482);
+  context.bezierCurveTo(234, 482, 279, 458, 301, 405);
+  context.bezierCurveTo(333, 322, 345, 207, 329, 123);
+  context.bezierCurveTo(314, 42, 248 - sway, 8, 180 + sway, 22);
   context.closePath();
 }
 
@@ -315,11 +316,11 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
       continue;
     }
 
-    const jellyTint = 0.28;
+    const jellyTint = 0.52;
     pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
     pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
     pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
-    pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.7);
+    pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.58);
   }
   sourceContext.putImageData(pixels, 0, 0);
   return source;
@@ -327,7 +328,7 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
 
 function drawFusedFallback(
   canvas: HTMLCanvasElement,
-  image: HTMLImageElement,
+  dogCanvas: HTMLCanvasElement | null,
   motion: JellyFallbackMotion,
   time: number,
 ) {
@@ -345,10 +346,11 @@ function drawFusedFallback(
   const impact = clamp(motion.impact, 0, 1.3);
   const idleWobble = Math.sin(time * 0.0024) * 0.012;
   const tilt = (motion.angle * Math.PI) / 180 * 0.55 + idleWobble;
-  const squash = 1 + impact * 0.055;
-  const stretch = 1 - impact * 0.045;
+  const squash = 1 + impact * 0.14;
+  const stretch = 1 - impact * 0.1;
   const driftX = clamp(motion.x * 1.1, -24, 24);
   const driftY = clamp(motion.y * 0.7, -18, 18);
+  const shapeWobble = Math.sin(time * 0.005) * 0.65 + motion.x * 0.008;
 
   context.save();
   context.translate(width / 2 + driftX, height / 2 + driftY);
@@ -356,16 +358,16 @@ function drawFusedFallback(
   context.scale(squash, stretch);
   context.translate(-width / 2, -height / 2);
 
-  drawJellyPath(context);
+  drawJellyPath(context, shapeWobble);
   context.save();
   context.shadowColor = "rgba(155, 33, 86, 0.32)";
   context.shadowBlur = 38;
   context.shadowOffsetY = 34;
-  context.fillStyle = "rgba(224, 92, 139, 0.82)";
+  context.fillStyle = "rgba(224, 92, 139, 0.76)";
   context.fill();
   context.restore();
 
-  drawJellyPath(context);
+  drawJellyPath(context, shapeWobble);
   context.save();
   context.clip();
   const bodyGradient = context.createLinearGradient(48, 20, 310, 478);
@@ -385,28 +387,44 @@ function drawFusedFallback(
   context.fillRect(0, 0, width, height);
 
   const innerScatter = context.createRadialGradient(168, 258, 8, 176, 260, 250);
-  innerScatter.addColorStop(0, "rgba(255, 239, 244, 0.2)");
-  innerScatter.addColorStop(0.58, "rgba(255, 155, 190, 0.08)");
-  innerScatter.addColorStop(1, "rgba(122, 24, 72, 0.18)");
+  innerScatter.addColorStop(0, "rgba(255, 239, 244, 0.28)");
+  innerScatter.addColorStop(0.58, "rgba(255, 155, 190, 0.1)");
+  innerScatter.addColorStop(1, "rgba(122, 24, 72, 0.22)");
   context.globalCompositeOperation = "screen";
   context.fillStyle = innerScatter;
   context.fillRect(0, 0, width, height);
 
-  const dogCanvas = makeFusedDogCanvas(image);
-  context.globalCompositeOperation = "source-over";
-  context.save();
-  context.filter = "blur(8px)";
-  context.globalAlpha = 0.2;
-  context.drawImage(dogCanvas, 77, 126, 206, 206);
-  context.restore();
-  context.globalAlpha = 0.68;
-  context.drawImage(dogCanvas, 77, 126, 206, 206);
-  context.globalAlpha = 1;
+  const dogX = 72;
+  const dogY = 130;
+  const dogSize = 216;
+  if (dogCanvas) {
+    const dogHaze = context.createRadialGradient(180, 232, 24, 180, 232, 138);
+    dogHaze.addColorStop(0, "rgba(255, 210, 225, 0.17)");
+    dogHaze.addColorStop(0.7, "rgba(255, 155, 190, 0.05)");
+    dogHaze.addColorStop(1, "rgba(255, 155, 190, 0)");
+    context.globalCompositeOperation = "screen";
+    context.fillStyle = dogHaze;
+    context.fillRect(44, 96, 272, 280);
+
+    context.globalCompositeOperation = "multiply";
+    context.save();
+    context.filter = "blur(2.6px) saturate(0.72)";
+    context.globalAlpha = 0.32;
+    context.drawImage(dogCanvas, dogX, dogY, dogSize, dogSize);
+    context.restore();
+
+    context.save();
+    context.filter = "blur(0.8px) saturate(0.78)";
+    context.globalAlpha = 0.62;
+    context.drawImage(dogCanvas, dogX, dogY, dogSize, dogSize);
+    context.restore();
+  }
 
   const jellyVeil = context.createLinearGradient(64, 90, 292, 420);
-  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.2)");
-  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.14)");
-  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.16)");
+  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.28)");
+  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.2)");
+  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.22)");
+  context.globalCompositeOperation = "source-over";
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
 
@@ -427,20 +445,30 @@ function drawFusedFallback(
   context.fillStyle = edgeGlow;
   context.fillRect(0, 0, width, height);
 
-  context.globalAlpha = 0.38;
+  context.globalCompositeOperation = "screen";
+  context.globalAlpha = 0.66;
+  context.strokeStyle = "rgba(255, 255, 255, 0.52)";
+  context.lineCap = "round";
+  context.lineWidth = 17;
+  context.beginPath();
+  context.moveTo(86, 90);
+  context.bezierCurveTo(56, 154, 64, 244, 88, 306);
+  context.stroke();
+
+  context.globalAlpha = 0.42;
   context.beginPath();
   context.ellipse(112, 182, 24, 92, -0.34, 0, Math.PI * 2);
   context.fillStyle = "rgba(255, 255, 255, 0.72)";
   context.fill();
 
-  context.globalAlpha = 0.55;
+  context.globalAlpha = 0.68;
   context.beginPath();
-  context.ellipse(184, 454, 72, 13, 0, 0, Math.PI * 2);
-  context.fillStyle = "rgba(255, 206, 224, 0.42)";
+  context.ellipse(184, 458, 86, 15, 0, 0, Math.PI * 2);
+  context.fillStyle = "rgba(255, 206, 224, 0.5)";
   context.fill();
   context.restore();
 
-  drawJellyPath(context);
+  drawJellyPath(context, shapeWobble);
   context.strokeStyle = "rgba(255, 224, 235, 0.5)";
   context.lineWidth = 1.5;
   context.stroke();
@@ -459,11 +487,12 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const image = new Image();
+    let dogCanvas: HTMLCanvasElement | null = null;
     let animationFrame = 0;
     let active = true;
     const render = (time: number) => {
       if (!active) return;
-      drawFusedFallback(canvas, image, motionRef.current, time);
+      drawFusedFallback(canvas, dogCanvas, motionRef.current, time);
       motionRef.current.angle *= 0.93;
       motionRef.current.x *= 0.93;
       motionRef.current.y *= 0.93;
@@ -471,6 +500,7 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
       animationFrame = window.requestAnimationFrame(render);
     };
     image.onload = () => {
+      dogCanvas = makeFusedDogCanvas(image);
       animationFrame = window.requestAnimationFrame(render);
     };
     image.src = "./custom-character.png";
