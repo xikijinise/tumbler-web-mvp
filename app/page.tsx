@@ -1298,3 +1298,8 @@ export default function Home() {
         <div className="corner corner-hint" aria-hidden="true">
           <span className="hint-dot" />
           <span>失衡是反馈，不是失败</span>
+        </div>
+      </section>
+    </main>
+  );
+}
