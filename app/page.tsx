@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -9,7 +9,6 @@ import {
   type PhysicsAction,
   type PhysicsCommand,
   type PhysicsState,
-  type TumblerAppearance,
 } from "./tumbler-scene";
 
 type ActionId =
@@ -54,11 +53,8 @@ type SpeechPosition = {
   side: "left" | "right";
 };
 
-type AppearancePart = keyof TumblerAppearance;
-
 type TumblerSettings = {
   sayings: string[];
-  appearance: TumblerAppearance;
 };
 
 const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v2";
@@ -69,18 +65,7 @@ const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpcG50eGxyZmN0eWRoZ3hteGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0OTE3MzYsImV4cCI6MjEwMzA2NzczNn0.6c9b4kc37umD7ejz7m01reJLcNm0FBKMH18sitkCboY";
 const DEFAULT_SAYINGS = ["等等就好了", "明天就好了", "再等等", "已经让人处理了"];
-const DEFAULT_APPEARANCE: TumblerAppearance = {
-  headImage: "custom-character.png",
-  middleImage: "custom-character.png",
-  baseImage: null,
-};
 const INITIAL_SPEECH_POSITION: SpeechPosition = { id: 0, x: 74, y: 44, side: "right" };
-const IMAGE_PARTS: Array<{ id: AppearancePart; label: string; hint: string }> = [
-  { id: "headImage", label: "头部", hint: "帽子 / 头部贴图" },
-  { id: "middleImage", label: "中段", hint: "身体中段贴图" },
-  { id: "baseImage", label: "底部", hint: "底座贴图" },
-];
-const MAX_CUSTOM_IMAGE_BYTES = 4 * 1024 * 1024;
 
 const ACTIONS: ActionDefinition[] = [
   {
@@ -248,12 +233,6 @@ function normalizeSayings(value: unknown) {
   return sayings.length > 0 ? sayings : [...DEFAULT_SAYINGS];
 }
 
-function normalizeImage(value: unknown) {
-  return typeof value === "string" && (value.startsWith("data:image/") || value.startsWith("custom-character.png"))
-    ? value
-    : null;
-}
-
 function parseCountValue(value: unknown): number | null {
   const count = typeof value === "number" ? value : Number.parseInt(typeof value === "string" ? value : "", 10);
   return Number.isSafeInteger(count) && count >= 0 ? count : null;
@@ -303,24 +282,18 @@ function incrementGlobalInputCount() {
 
 function parseStoredSettings(raw: string | null): TumblerSettings {
   if (!raw) {
-    return { sayings: [...DEFAULT_SAYINGS], appearance: { ...DEFAULT_APPEARANCE } };
+    return { sayings: [...DEFAULT_SAYINGS] };
   }
 
   try {
     const parsed = JSON.parse(raw) as {
       sayings?: unknown;
-      appearance?: Partial<Record<AppearancePart, unknown>>;
     };
     return {
       sayings: normalizeSayings(parsed.sayings),
-      appearance: {
-        headImage: normalizeImage(parsed.appearance?.headImage),
-        middleImage: normalizeImage(parsed.appearance?.middleImage),
-        baseImage: normalizeImage(parsed.appearance?.baseImage),
-      },
     };
   } catch {
-    return { sayings: [...DEFAULT_SAYINGS], appearance: { ...DEFAULT_APPEARANCE } };
+    return { sayings: [...DEFAULT_SAYINGS] };
   }
 }
 
@@ -359,7 +332,6 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<TumblerSettings>({
     sayings: [...DEFAULT_SAYINGS],
-    appearance: { ...DEFAULT_APPEARANCE },
   });
   const [sayingsDraft, setSayingsDraft] = useState(DEFAULT_SAYINGS.join("\n"));
   const [speechText, setSpeechText] = useState(DEFAULT_SAYINGS[0]);
@@ -417,7 +389,7 @@ export default function Home() {
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch {
       noticeTimer = window.setTimeout(() => {
-        setSettingsNotice("设置已应用，但图片太大，无法持久保存");
+        setSettingsNotice("设置已应用，但无法持久保存");
       }, 0);
     }
 
@@ -785,43 +757,6 @@ export default function Home() {
     setSettingsNotice("设置已应用");
   }, [sayingsDraft, showSaying]);
 
-  const handleImageChange = useCallback(
-    (part: AppearancePart, event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        setSettingsNotice("请选择图片文件");
-        return;
-      }
-      if (file.size > MAX_CUSTOM_IMAGE_BYTES) {
-        setSettingsNotice("图片不能超过 4MB");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result !== "string") return;
-        setSettings((current) => ({
-          ...current,
-          appearance: { ...current.appearance, [part]: reader.result as string },
-        }));
-        setSettingsNotice(`${IMAGE_PARTS.find((item) => item.id === part)?.label ?? "部位"}图片已载入`);
-      };
-      reader.onerror = () => setSettingsNotice("图片读取失败，请换一张试试");
-      reader.readAsDataURL(file);
-    },
-    [],
-  );
-
-  const clearImage = useCallback((part: AppearancePart) => {
-    setSettings((current) => ({
-      ...current,
-      appearance: { ...current.appearance, [part]: null },
-    }));
-    setSettingsNotice("图片已清除");
-  }, []);
-
   return (
     <main className="experiment-shell">
       <section
@@ -832,14 +767,14 @@ export default function Home() {
         onPointerUp={handleStagePointerUp}
         onPointerCancel={handleStagePointerUp}
         role="application"
-        aria-label="不倒翁互动实验台，点击或拖拽来施加真实三维力量"
+        aria-label="果冻不倒翁互动实验台，点击或拖拽来施加真实三维力量"
       >
         <header className="corner corner-brand">
-          <h1>不倒翁<br /><em>互动实验</em></h1>
+          <h1>果冻不倒翁<br /><em>互动实验</em></h1>
         </header>
 
         <aside className="corner corner-status" aria-label="实时状态">
-          <div className="corner-live"><span className="live-dot" /> LIVE / RAPIER 3D</div>
+          <div className="corner-live"><span className="live-dot" /> LIVE / JELLY PHYSICS</div>
           <div className="mini-metrics">
             <div><span>稳定</span><strong>{stability}%</strong></div>
             <div><span>角度</span><strong>{display.angle >= 0 ? "+" : ""}{display.angle.toFixed(1)}°</strong></div>
@@ -870,7 +805,6 @@ export default function Home() {
               <TumblerScene
                 commandQueueRef={physicsCommandQueueRef}
                 onState={setDisplay}
-                appearance={settings.appearance}
               />
             </Canvas>
           </div>
@@ -947,7 +881,7 @@ export default function Home() {
                 <strong>SETTINGS / CUSTOMIZE</strong>
                 <button onClick={() => setSettingsOpen(false)} type="button" aria-label="关闭设置">×</button>
               </div>
-              <p className="settings-intro">自定义它会说的话，也可以给头部、中段和底部换上自己的图片。</p>
+              <p className="settings-intro">只调整互动时的提示语，果冻外形保持为一个完整的连续模型。</p>
               <label className="settings-field">
                 <span>不倒翁台词</span>
                 <textarea
@@ -958,33 +892,6 @@ export default function Home() {
                 />
                 <small>每行一句，最多保存 8 句</small>
               </label>
-              <div className="settings-section-title">3D 外观 / IMAGE PARTS</div>
-              <div className="image-settings">
-                {IMAGE_PARTS.map((part) => {
-                  const image = settings.appearance[part.id];
-                  return (
-                    <div className="image-setting" key={part.id}>
-                      <div className="image-setting-meta">
-                        <strong>{part.label}</strong>
-                        <small>{part.hint}</small>
-                      </div>
-                      <label className="image-picker">
-                        {image ? <img src={image} alt={`${part.label}预览`} /> : <span>＋</span>}
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={(event) => handleImageChange(part.id, event)}
-                        />
-                      </label>
-                      {image && (
-                        <button className="image-clear" type="button" onClick={() => clearImage(part.id)}>
-                          清除
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
               {settingsNotice && <div className="settings-notice">{settingsNotice}</div>}
               <button
                 className="settings-apply"
