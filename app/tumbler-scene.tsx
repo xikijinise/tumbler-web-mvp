@@ -261,8 +261,14 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     }
     return mergedGeometry;
   }, [jellyGeometry]);
+  const baseJellyPositions = useMemo(
+    () => new Float32Array(combinedJellyGeometry.attributes.position.array),
+    [combinedJellyGeometry],
+  );
+  const combinedJellyGeometryRef = useRef(combinedJellyGeometry);
+  const geometryWasDeformedRef = useRef(false);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const body = bodyRef.current;
     if (!body) return;
 
@@ -389,8 +395,31 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
       motionTarget,
       1 - Math.exp(-delta * 9),
     );
+    const jellyMotion = jellyMotionRef.current;
+    if (jellyMotion > 0.001 || geometryWasDeformedRef.current) {
+      const geometry = combinedJellyGeometryRef.current;
+      const positions = geometry.attributes.position;
+      const time = state.clock.elapsedTime;
+      for (let index = 0; index < positions.count; index += 1) {
+        const offset = index * 3;
+        const baseX = baseJellyPositions[offset];
+        const baseY = baseJellyPositions[offset + 1];
+        const baseZ = baseJellyPositions[offset + 2];
+        const height = clamp((baseY + 2.1) / 4.4, 0, 1);
+        const envelope = Math.sin(Math.PI * height);
+        const wave = jellyMotion * envelope;
+        positions.setXYZ(
+          index,
+          baseX + Math.sin(time * 8 + baseY * 2.1 + baseX * 1.7) * wave * 0.035,
+          baseY + Math.cos(time * 7 + baseX * 1.4) * wave * 0.018,
+          baseZ + Math.sin(time * 9 + baseX * 1.2 + baseY) * wave * 0.045,
+        );
+      }
+      positions.needsUpdate = true;
+      geometry.computeVertexNormals();
+      geometryWasDeformedRef.current = jellyMotion > 0.001;
+    }
     if (visualGroupRef.current) {
-      const jellyMotion = jellyMotionRef.current;
       jellyTargetScaleRef.current.set(
         1.12 * (1 + jellyMotion * 0.045),
         1.12 * (1 - jellyMotion * 0.055),
@@ -424,7 +453,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     const signedTilt =
       Math.sign(euler.z || euler.x || 1) *
       THREE.MathUtils.radToDeg(Math.hypot(euler.x, euler.z));
-    const state: PhysicsState = {
+    const nextPhysicsState: PhysicsState = {
       angle: clamp(signedTilt, -89, 89),
       angularVelocity: THREE.MathUtils.radToDeg(
         Math.sign(stateAngularVelocity.z || stateAngularVelocity.x || 1) *
@@ -438,8 +467,8 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
       y: stateTranslation.y * 16,
       vy: stateLinearVelocity.y * 16,
     };
-    lastReportRef.current = state;
-    onState(state);
+    lastReportRef.current = nextPhysicsState;
+    onState(nextPhysicsState);
   });
 
   return (
