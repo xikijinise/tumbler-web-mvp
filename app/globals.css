@@ -289,7 +289,7 @@ kbd {
 .three-fallback-body {
   display: block;
   width: min(42vw, 330px);
-  aspect-ratio: 0.72;
+  aspect-ratio: 400 / 540;
   height: auto;
   overflow: visible;
   border: 0;
