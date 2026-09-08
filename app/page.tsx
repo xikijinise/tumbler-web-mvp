@@ -554,9 +554,12 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
     };
     image.onload = () => {
       dogCanvas = makeFusedDogCanvas(image);
-      animationFrame = window.requestAnimationFrame(render);
     };
     image.src = "./custom-character.png";
+    // Paint the translucent body immediately. The dog artwork is an interior
+    // layer and may arrive later over a slow mobile connection; the page must
+    // never be blank while that asset is loading.
+    animationFrame = window.requestAnimationFrame(render);
     return () => {
       active = false;
       window.cancelAnimationFrame(animationFrame);
