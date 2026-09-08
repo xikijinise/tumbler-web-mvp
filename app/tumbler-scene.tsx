@@ -3,7 +3,7 @@
 /* eslint-disable react/no-unknown-property -- React Three Fiber JSX props. */
 
 import { useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import {
   BallCollider,
   CapsuleCollider,
@@ -13,6 +13,8 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import * as THREE from "three";
+import { DecalGeometry } from "three/examples/jsm/geometries/DecalGeometry.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 export type PhysicsState = {
   angle: number;
@@ -196,6 +198,29 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     ],
     [],
   );
+  const jellyGeometry = useMemo(
+    () => new THREE.LatheGeometry(jellyProfile, 128),
+    [jellyProfile],
+  );
+  const dogTexture = useLoader(THREE.TextureLoader, "/custom-character.png");
+  const combinedJellyGeometry = useMemo(() => {
+    const projector = new THREE.Mesh(jellyGeometry);
+    const dogDecalGeometry = new DecalGeometry(
+      projector,
+      new THREE.Vector3(0, 1.12, 1.12),
+      new THREE.Euler(0, 0, 0),
+      new THREE.Vector3(1.2, 1.2, 0.26),
+    );
+    const mergedGeometry = mergeGeometries(
+      [jellyGeometry, dogDecalGeometry],
+      true,
+    );
+    dogDecalGeometry.dispose();
+    if (!mergedGeometry) {
+      throw new Error("Unable to merge the jelly body and dog head geometry");
+    }
+    return mergedGeometry;
+  }, [jellyGeometry]);
 
   useFrame((_, delta) => {
     const body = bodyRef.current;
@@ -389,9 +414,9 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
       restitution={0.12}
     >
       <group ref={visualGroupRef} scale={1.12}>
-        <mesh castShadow receiveShadow>
-          <latheGeometry args={[jellyProfile, 128]} />
+        <mesh geometry={combinedJellyGeometry} castShadow receiveShadow>
           <meshPhysicalMaterial
+            attach="material-0"
             color="#ef789e"
             roughness={0.14}
             metalness={0}
@@ -404,6 +429,23 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
             attenuationDistance={2.4}
             transparent
             opacity={0.96}
+          />
+          <meshPhysicalMaterial
+            attach="material-1"
+            map={dogTexture}
+            color="#ffffff"
+            roughness={0.18}
+            metalness={0}
+            clearcoat={0.64}
+            clearcoatRoughness={0.14}
+            transmission={0.08}
+            thickness={0.7}
+            ior={1.33}
+            transparent
+            opacity={0.98}
+            alphaTest={0.01}
+            depthWrite={false}
+            toneMapped={false}
           />
         </mesh>
       </group>
