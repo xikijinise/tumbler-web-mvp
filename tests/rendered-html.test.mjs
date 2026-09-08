@@ -113,6 +113,10 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(scene, /frontWallZ/);
   assert.match(scene, /ACTION_FORCE_GAIN/);
   assert.match(scene, /jellyProfile/);
+  assert.match(scene, /custom-character\.png/);
+  assert.match(scene, /DecalGeometry/);
+  assert.match(scene, /mergeGeometries/);
+  assert.match(scene, /combinedJellyGeometry/);
   assert.match(scene, /<meshPhysicalMaterial/);
   assert.match(scene, /transmission=/);
   assert.match(scene, /visualGroupRef/);
@@ -121,7 +125,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.doesNotMatch(scene, /useImageTexture|FrontImage|planeGeometry|meshBasicMaterial|tumbler-real/);
   assert.match(scene, /applyTorqueImpulse/);
   assert.match(scene, /useFrame/);
-  assert.match(scene, /latheGeometry/);
+  assert.match(scene, /LatheGeometry/);
   assert.match(scene, /uprightEuler/);
   assert.doesNotMatch(scene, /\bAI\b|OpenAI|核云|智能助手/i);
   assert.doesNotMatch(page, /board-crosshair|impact-rings|ground-marker|impact-wave|ROLY-POLY \/ TEST 02|brand-rule|board-texture|momentum-line/);
