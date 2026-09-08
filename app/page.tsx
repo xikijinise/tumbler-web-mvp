@@ -63,6 +63,13 @@ type TumblerSettings = {
 
 type WebGLStatus = "checking" | "available" | "unavailable";
 
+type JellyFallbackMotion = {
+  angle: number;
+  x: number;
+  y: number;
+  impact: number;
+};
+
 const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v2";
 const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
 const SUPABASE_PROJECT_URL =
@@ -202,6 +209,12 @@ const INITIAL_PHYSICS: PhysicsState = {
 
 const INPUT_REPEAT_INTERVAL_MS = 140;
 const AUTO_RETURN_DELAY_MS = 3600;
+const INITIAL_FALLBACK_MOTION: JellyFallbackMotion = {
+  angle: 0,
+  x: 0,
+  y: 0,
+  impact: 0,
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -312,7 +325,12 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
   return source;
 }
 
-function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
+function drawFusedFallback(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement,
+  motion: JellyFallbackMotion,
+  time: number,
+) {
   const width = 360;
   const height = 500;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -324,27 +342,51 @@ function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, width, height);
 
+  const impact = clamp(motion.impact, 0, 1.3);
+  const idleWobble = Math.sin(time * 0.0024) * 0.012;
+  const tilt = (motion.angle * Math.PI) / 180 * 0.55 + idleWobble;
+  const squash = 1 + impact * 0.055;
+  const stretch = 1 - impact * 0.045;
+  const driftX = clamp(motion.x * 1.1, -24, 24);
+  const driftY = clamp(motion.y * 0.7, -18, 18);
+
+  context.save();
+  context.translate(width / 2 + driftX, height / 2 + driftY);
+  context.rotate(tilt);
+  context.scale(squash, stretch);
+  context.translate(-width / 2, -height / 2);
+
   drawJellyPath(context);
   context.save();
-  context.shadowColor = "rgba(216, 94, 131, 0.22)";
-  context.shadowBlur = 28;
-  context.shadowOffsetY = 24;
-  context.fillStyle = "rgba(239, 120, 158, 0.96)";
+  context.shadowColor = "rgba(190, 55, 105, 0.24)";
+  context.shadowBlur = 32;
+  context.shadowOffsetY = 28;
+  context.fillStyle = "rgba(224, 92, 139, 0.9)";
   context.fill();
   context.restore();
 
   drawJellyPath(context);
   context.save();
   context.clip();
-  const bodyGradient = context.createLinearGradient(52, 35, 298, 470);
-  bodyGradient.addColorStop(0, "rgba(255, 183, 205, 0.96)");
-  bodyGradient.addColorStop(0.52, "rgba(239, 120, 158, 0.94)");
-  bodyGradient.addColorStop(1, "rgba(226, 111, 151, 0.92)");
+  const bodyGradient = context.createLinearGradient(48, 20, 310, 478);
+  bodyGradient.addColorStop(0, "rgba(255, 207, 222, 0.92)");
+  bodyGradient.addColorStop(0.24, "rgba(246, 146, 177, 0.93)");
+  bodyGradient.addColorStop(0.66, "rgba(226, 101, 145, 0.92)");
+  bodyGradient.addColorStop(1, "rgba(184, 54, 106, 0.9)");
   context.fillStyle = bodyGradient;
   context.fillRect(0, 0, width, height);
 
+  const innerScatter = context.createRadialGradient(168, 258, 8, 176, 260, 250);
+  innerScatter.addColorStop(0, "rgba(255, 239, 244, 0.2)");
+  innerScatter.addColorStop(0.58, "rgba(255, 155, 190, 0.08)");
+  innerScatter.addColorStop(1, "rgba(122, 24, 72, 0.18)");
+  context.globalCompositeOperation = "screen";
+  context.fillStyle = innerScatter;
+  context.fillRect(0, 0, width, height);
+
   const dogCanvas = makeFusedDogCanvas(image);
-  context.globalAlpha = 0.84;
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 0.76;
   context.drawImage(dogCanvas, 77, 126, 206, 206);
   context.globalAlpha = 1;
 
@@ -355,14 +397,24 @@ function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
 
-  const sheen = context.createRadialGradient(112, 105, 4, 126, 110, 155);
-  sheen.addColorStop(0, "rgba(255,255,255,0.48)");
-  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  const sheen = context.createRadialGradient(104, 104, 4, 128, 120, 174);
+  sheen.addColorStop(0, "rgba(255, 255, 255, 0.68)");
+  sheen.addColorStop(0.42, "rgba(255, 239, 245, 0.25)");
+  sheen.addColorStop(1, "rgba(255, 255, 255, 0)");
   context.globalCompositeOperation = "screen";
   context.fillStyle = sheen;
   context.fillRect(0, 0, width, height);
 
-  context.globalAlpha = 0.34;
+  const edgeGlow = context.createLinearGradient(58, 80, 302, 420);
+  edgeGlow.addColorStop(0, "rgba(255, 255, 255, 0.32)");
+  edgeGlow.addColorStop(0.24, "rgba(255, 255, 255, 0)");
+  edgeGlow.addColorStop(0.76, "rgba(255, 255, 255, 0)");
+  edgeGlow.addColorStop(1, "rgba(255, 236, 245, 0.2)");
+  context.globalAlpha = 0.92;
+  context.fillStyle = edgeGlow;
+  context.fillRect(0, 0, width, height);
+
+  context.globalAlpha = 0.38;
   context.beginPath();
   context.ellipse(112, 182, 24, 92, -0.34, 0, Math.PI * 2);
   context.fillStyle = "rgba(255, 255, 255, 0.72)";
@@ -370,21 +422,42 @@ function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
   context.restore();
 
   drawJellyPath(context);
-  context.strokeStyle = "rgba(216, 94, 131, 0.22)";
-  context.lineWidth = 1;
+  context.strokeStyle = "rgba(255, 224, 235, 0.5)";
+  context.lineWidth = 1.5;
   context.stroke();
+  context.restore();
 }
 
-function JellyFallback() {
+function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const motionRef = useRef({ ...motion });
+
+  useEffect(() => {
+    motionRef.current = { ...motion };
+  }, [motion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const image = new Image();
-    image.onload = () => drawFusedFallback(canvas, image);
+    let animationFrame = 0;
+    let active = true;
+    const render = (time: number) => {
+      if (!active) return;
+      drawFusedFallback(canvas, image, motionRef.current, time);
+      motionRef.current.angle *= 0.93;
+      motionRef.current.x *= 0.93;
+      motionRef.current.y *= 0.93;
+      motionRef.current.impact *= 0.91;
+      animationFrame = window.requestAnimationFrame(render);
+    };
+    image.onload = () => {
+      animationFrame = window.requestAnimationFrame(render);
+    };
     image.src = "./custom-character.png";
     return () => {
+      active = false;
+      window.cancelAnimationFrame(animationFrame);
       image.onload = null;
     };
   }, []);
@@ -484,6 +557,9 @@ export default function Home() {
   const [speechPosition, setSpeechPosition] = useState(INITIAL_SPEECH_POSITION);
   const [settingsNotice, setSettingsNotice] = useState("");
   const [webglStatus, setWebglStatus] = useState<WebGLStatus>("checking");
+  const [fallbackMotion, setFallbackMotion] = useState<JellyFallbackMotion>({
+    ...INITIAL_FALLBACK_MOTION,
+  });
 
   const stability = useMemo(
     () =>
@@ -625,6 +701,7 @@ export default function Home() {
     stopPointerRepeat();
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "reset" });
     setDisplay({ ...INITIAL_PHYSICS });
+    setFallbackMotion({ ...INITIAL_FALLBACK_MOTION });
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("归位完成");
@@ -643,6 +720,7 @@ export default function Home() {
     autoReturnArmedRef.current = false;
     stopPointerRepeat();
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "return" });
+    setFallbackMotion({ ...INITIAL_FALLBACK_MOTION });
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("自动归位");
@@ -681,6 +759,12 @@ export default function Home() {
         action,
         strength,
         point,
+      });
+      setFallbackMotion({
+        angle: action.angle * strength,
+        x: action.x * strength,
+        y: action.jump * 0.6 * strength,
+        impact: strength,
       });
       setLastImpact(action.label);
       showSaying(pickSaying());
@@ -865,6 +949,12 @@ export default function Home() {
         dx,
         dy,
       });
+      setFallbackMotion((current) => ({
+        angle: clamp(current.angle + dx * 0.22, -18, 18),
+        x: clamp(current.x + dx * 0.08, -22, 22),
+        y: clamp(current.y - dy * 0.06, -16, 16),
+        impact: clamp(current.impact + (Math.abs(dx) + Math.abs(dy)) / 80, 0, 1.3),
+      }));
     }
   }, [noteInput, stopPointerRepeat]);
 
@@ -946,13 +1036,13 @@ export default function Home() {
         <div className="subject-zone" aria-hidden="true">
           <div className="three-stage" data-physics="react-three-rapier" data-x-position={display.x.toFixed(2)}>
             {webglStatus === "available" ? (
-              <Suspense fallback={<JellyFallback />}>
+              <Suspense fallback={<JellyFallback motion={fallbackMotion} />}>
                 <ThreeCanvas
                   dpr={[1, 2]}
                   camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
                   shadows
                   gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-                  fallback={<JellyFallback />}
+                  fallback={<JellyFallback motion={fallbackMotion} />}
                   onCreated={({ gl }) => {
                     gl.setClearColor(0x000000, 0);
                     gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -968,7 +1058,7 @@ export default function Home() {
                 </ThreeCanvas>
               </Suspense>
             ) : (
-              <JellyFallback />
+              <JellyFallback motion={fallbackMotion} />
             )}
           </div>
           {effects.map((effect) => (
