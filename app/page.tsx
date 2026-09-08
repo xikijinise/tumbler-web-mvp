@@ -57,6 +57,8 @@ type TumblerSettings = {
   sayings: string[];
 };
 
+type WebGLStatus = "checking" | "available" | "unavailable";
+
 const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v2";
 const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
 const SUPABASE_PROJECT_URL =
@@ -250,6 +252,23 @@ function normalizeRemoteCount(value: unknown) {
   return parseCountValue(value);
 }
 
+function canUseWebGL() {
+  if (typeof document === "undefined") return false;
+  const canvas = document.createElement("canvas");
+  return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+}
+
+function JellyFallback() {
+  return (
+    <div className="three-fallback" role="img" aria-label="果冻不倒翁预览">
+      <div className="three-fallback-body">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static fallback asset must follow the Pages base path. */}
+        <img src="./custom-character.png" alt="" />
+      </div>
+    </div>
+  );
+}
+
 async function callCountRpc(name: "get_input_count" | "increment_input_count") {
   if (!SUPABASE_PROJECT_URL || !SUPABASE_ANON_KEY) return null;
 
@@ -337,6 +356,7 @@ export default function Home() {
   const [speechText, setSpeechText] = useState(DEFAULT_SAYINGS[0]);
   const [speechPosition, setSpeechPosition] = useState(INITIAL_SPEECH_POSITION);
   const [settingsNotice, setSettingsNotice] = useState("");
+  const [webglStatus, setWebglStatus] = useState<WebGLStatus>("checking");
 
   const stability = useMemo(
     () =>
@@ -397,6 +417,14 @@ export default function Home() {
       if (noticeTimer !== undefined) window.clearTimeout(noticeTimer);
     };
   }, [settings]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setWebglStatus(canUseWebGL() ? "available" : "unavailable");
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const pickSaying = useCallback(() => {
     const sayings = settings.sayings.length > 0 ? settings.sayings : DEFAULT_SAYINGS;
@@ -789,32 +817,29 @@ export default function Home() {
 
         <div className="subject-zone" aria-hidden="true">
           <div className="three-stage" data-physics="react-three-rapier" data-x-position={display.x.toFixed(2)}>
-            <Canvas
-              dpr={[1, 2]}
-              camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
-              shadows
-              gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-              fallback={
-                <div className="three-fallback" role="img" aria-label="果冻不倒翁预览">
-                  <div className="three-fallback-body">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- static fallback asset must follow the Pages base path. */}
-                    <img src="./custom-character.png" alt="" />
-                  </div>
-                </div>
-              }
-              onCreated={({ gl }) => {
-                gl.setClearColor(0x000000, 0);
-                gl.outputColorSpace = THREE.SRGBColorSpace;
-                gl.toneMapping = THREE.ACESFilmicToneMapping;
-                gl.toneMappingExposure = 1.12;
-              }}
-              style={{ pointerEvents: "none" }}
-            >
-              <TumblerScene
-                commandQueueRef={physicsCommandQueueRef}
-                onState={setDisplay}
-              />
-            </Canvas>
+            {webglStatus === "available" ? (
+              <Canvas
+                dpr={[1, 2]}
+                camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
+                shadows
+                gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+                fallback={<JellyFallback />}
+                onCreated={({ gl }) => {
+                  gl.setClearColor(0x000000, 0);
+                  gl.outputColorSpace = THREE.SRGBColorSpace;
+                  gl.toneMapping = THREE.ACESFilmicToneMapping;
+                  gl.toneMappingExposure = 1.12;
+                }}
+                style={{ pointerEvents: "none" }}
+              >
+                <TumblerScene
+                  commandQueueRef={physicsCommandQueueRef}
+                  onState={setDisplay}
+                />
+              </Canvas>
+            ) : (
+              <JellyFallback />
+            )}
           </div>
           {effects.map((effect) => (
             <span
