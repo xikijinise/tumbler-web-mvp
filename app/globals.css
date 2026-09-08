@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #252a27;
-  --ink-soft: #59605a;
-  --muted: #8b9086;
+  --ink: #34252b;
+  --ink-soft: #6f5862;
+  --muted: #a9959e;
   --paper: #ffffff;
   --paper-deep: #ffffff;
-  --line: #d8d8ce;
-  --line-soft: rgba(37, 42, 39, 0.11);
-  --lime: #94ba2f;
-  --coral: #df6755;
-  --sun: #d89d22;
-  --violet: #8776c5;
-  --cyan: #3ca49c;
-  --orange: #d77b39;
+  --line: #eadde2;
+  --line-soft: rgba(52, 37, 43, 0.11);
+  --lime: #e58aa9;
+  --coral: #d85e83;
+  --sun: #d5a05c;
+  --violet: #9b86be;
+  --cyan: #78aaa5;
+  --orange: #d98c67;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -24,13 +24,13 @@
 }
 
 html {
-  background: #fff;
+  background: #fff8fb;
 }
 
 body {
   min-width: 320px;
   margin: 0;
-  background: #fff;
+  background: #fff8fb;
   color: var(--ink);
   font-family: var(--sans);
 }
@@ -47,7 +47,7 @@ button:focus-visible {
 .experiment-shell {
   min-height: 100svh;
   padding: 0;
-  background: #fff;
+  background: #fff8fb;
 }
 
 .experiment-board {
@@ -58,7 +58,9 @@ button:focus-visible {
   margin: 0 auto;
   overflow: hidden;
   border: 0;
-  background: #fff;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 216, 228, 0.2), transparent 28%),
+    #fff;
   box-shadow: none;
   isolation: isolate;
   touch-action: none;
@@ -246,6 +248,20 @@ kbd {
   perspective: 1100px;
   perspective-origin: 50% 44%;
   pointer-events: none;
+}
+
+.subject-zone::before {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  width: min(38vw, 420px);
+  height: min(54vw, 520px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(239, 120, 158, 0.18), transparent 68%);
+  content: "";
+  filter: blur(18px);
+  transform: translate(-50%, -48%);
 }
 
 .three-stage {
@@ -538,8 +554,7 @@ kbd {
   gap: 6px;
 }
 
-.settings-field > span,
-.settings-section-title {
+.settings-field > span {
   color: var(--ink-soft);
   font-family: var(--mono);
   font-size: 10px;
@@ -565,83 +580,9 @@ kbd {
   outline: 0;
 }
 
-.settings-field small,
-.image-setting-meta small {
+.settings-field small {
   color: var(--muted);
   font-size: 10px;
-}
-
-.settings-section-title {
-  margin: 18px 0 9px;
-}
-
-.image-settings {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.image-setting {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-}
-
-.image-setting-meta {
-  display: grid;
-  gap: 3px;
-}
-
-.image-setting-meta strong {
-  font-size: 11px;
-}
-
-.image-picker {
-  position: relative;
-  display: grid;
-  min-height: 86px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px dashed var(--line);
-  background: #fff;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 24px;
-}
-
-.image-picker:hover {
-  border-color: var(--lime);
-  color: var(--lime);
-}
-
-.image-picker img {
-  width: 100%;
-  height: 100%;
-  min-height: 86px;
-  object-fit: cover;
-}
-
-.image-picker input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.image-clear {
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 10px;
-  padding: 5px;
-}
-
-.image-clear:hover {
-  border-color: var(--coral);
-  color: var(--coral);
 }
 
 .settings-notice {
@@ -933,17 +874,31 @@ kbd {
     min-height: 590px;
   }
 
+  .corner-brand {
+    top: 18px;
+    left: 18px;
+    max-width: 120px;
+  }
+
   .corner-brand h1 {
-    font-size: 27px;
+    font-size: 22px;
+    line-height: 1.02;
   }
 
   .corner-status {
-    width: 154px;
+    top: 18px;
+    right: 18px;
+    width: 136px;
     padding-left: 0;
   }
 
   .corner-live {
-    font-size: 8px;
+    gap: 6px;
+    font-size: 7px;
+  }
+
+  .depth-readout {
+    display: none;
   }
 
   .mini-metrics {
