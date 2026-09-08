@@ -297,7 +297,16 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
     const blue = pixels.data[index + 2];
     const isYellowBackdrop =
       red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
-    if (isYellowBackdrop) pixels.data[index + 3] = 0;
+    if (isYellowBackdrop) {
+      pixels.data[index + 3] = 0;
+      continue;
+    }
+
+    const jellyTint = 0.16;
+    pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
+    pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
+    pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
+    pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.82);
   }
   sourceContext.putImageData(pixels, 0, 0);
   return source;
@@ -335,8 +344,16 @@ function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
   context.fillRect(0, 0, width, height);
 
   const dogCanvas = makeFusedDogCanvas(image);
-  context.globalAlpha = 0.94;
-  context.drawImage(dogCanvas, 91, 151, 178, 178);
+  context.globalAlpha = 0.84;
+  context.drawImage(dogCanvas, 77, 126, 206, 206);
+  context.globalAlpha = 1;
+
+  const jellyVeil = context.createLinearGradient(64, 90, 292, 420);
+  jellyVeil.addColorStop(0, "rgba(255, 232, 239, 0.16)");
+  jellyVeil.addColorStop(0.5, "rgba(255, 171, 198, 0.11)");
+  jellyVeil.addColorStop(1, "rgba(206, 78, 126, 0.12)");
+  context.fillStyle = jellyVeil;
+  context.fillRect(0, 0, width, height);
 
   const sheen = context.createRadialGradient(112, 105, 4, 126, 110, 155);
   sheen.addColorStop(0, "rgba(255,255,255,0.48)");
@@ -344,6 +361,12 @@ function drawFusedFallback(canvas: HTMLCanvasElement, image: HTMLImageElement) {
   context.globalCompositeOperation = "screen";
   context.fillStyle = sheen;
   context.fillRect(0, 0, width, height);
+
+  context.globalAlpha = 0.34;
+  context.beginPath();
+  context.ellipse(112, 182, 24, 92, -0.34, 0, Math.PI * 2);
+  context.fillStyle = "rgba(255, 255, 255, 0.72)";
+  context.fill();
   context.restore();
 
   drawJellyPath(context);
