@@ -61,10 +61,10 @@ const ACTION_FORCE_GAIN = 1.75;
 const SCREEN_DEPTH_MIN = -2.05;
 const SCREEN_DEPTH_MAX = 0.82;
 const WALL_THICKNESS = 0.16;
-const BODY_SCREEN_HALF_WIDTH = 1.5;
-const BODY_SCREEN_TOP = 2.72;
-const BODY_COLLIDER_HALF_WIDTH = 1.14;
-const BODY_COLLIDER_TOP = 2.3;
+const BODY_SCREEN_HALF_WIDTH = 1.68;
+const BODY_SCREEN_TOP = 2.98;
+const BODY_COLLIDER_HALF_WIDTH = 1.28;
+const BODY_COLLIDER_TOP = 2.48;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -237,22 +237,28 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
   const jellyMotionRef = useRef(0);
   const jellyProfile = useMemo(
     () => [
-      new THREE.Vector2(0.015, -2.02),
-      new THREE.Vector2(0.33, -2.01),
-      new THREE.Vector2(0.7, -1.92),
-      new THREE.Vector2(1.03, -1.73),
-      new THREE.Vector2(1.28, -1.45),
-      new THREE.Vector2(1.43, -1.09),
-      new THREE.Vector2(1.48, -0.62),
-      new THREE.Vector2(1.47, -0.12),
-      new THREE.Vector2(1.42, 0.4),
-      new THREE.Vector2(1.3, 0.88),
-      new THREE.Vector2(1.13, 1.29),
-      new THREE.Vector2(0.96, 1.58),
-      new THREE.Vector2(0.82, 1.8),
-      new THREE.Vector2(0.61, 1.98),
-      new THREE.Vector2(0.32, 2.08),
-      new THREE.Vector2(0.015, 2.11),
+      new THREE.Vector2(0.015, -2.22),
+      new THREE.Vector2(0.34, -2.2),
+      new THREE.Vector2(0.7, -2.12),
+      new THREE.Vector2(0.98, -1.92),
+      new THREE.Vector2(1.2, -1.66),
+      new THREE.Vector2(1.34, -1.32),
+      new THREE.Vector2(1.43, -0.86),
+      new THREE.Vector2(1.44, -0.3),
+      new THREE.Vector2(1.41, 0.26),
+      new THREE.Vector2(1.34, 0.75),
+      new THREE.Vector2(1.2, 1.18),
+      new THREE.Vector2(1.07, 1.48),
+      new THREE.Vector2(0.98, 1.63),
+      new THREE.Vector2(1.12, 1.68),
+      new THREE.Vector2(1.22, 1.78),
+      new THREE.Vector2(1.22, 1.94),
+      new THREE.Vector2(1.18, 2.18),
+      new THREE.Vector2(1.05, 2.41),
+      new THREE.Vector2(0.84, 2.6),
+      new THREE.Vector2(0.54, 2.72),
+      new THREE.Vector2(0.22, 2.78),
+      new THREE.Vector2(0.015, 2.79),
     ],
     [],
   );
@@ -270,9 +276,9 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     const projector = new THREE.Mesh(jellyGeometry);
     const dogDecalGeometry = new DecalGeometry(
       projector,
-      new THREE.Vector3(0, 0.86, 1.3),
+      new THREE.Vector3(0, -0.08, 1.34),
       new THREE.Euler(0, 0, 0),
-      new THREE.Vector3(1.42, 1.14, 0.3),
+      new THREE.Vector3(1.34, 1.06, 0.34),
     );
     const mergedGeometry = mergeGeometries(
       [jellyGeometry, dogDecalGeometry],
@@ -282,6 +288,19 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     if (!mergedGeometry) {
       throw new Error("Unable to merge the jelly body and dog head geometry");
     }
+    const positions = mergedGeometry.attributes.position;
+    const colors = new Float32Array(positions.count * 3);
+    for (let index = 0; index < positions.count; index += 1) {
+      const y = positions.getY(index);
+      const bodyBlend = clamp((y + 1.6) / 3.25, 0, 1);
+      const baseBlend = clamp((-y - 1.25) / 1.1, 0, 1);
+      const capBlend = clamp((y - 1.58) / 1.2, 0, 1);
+      const offset = index * 3;
+      colors[offset] = 0.86 + bodyBlend * 0.12 - baseBlend * 0.48 + capBlend * 0.04;
+      colors[offset + 1] = 0.3 + bodyBlend * 0.34 - baseBlend * 0.12 + capBlend * 0.02;
+      colors[offset + 2] = 0.48 + bodyBlend * 0.14 - baseBlend * 0.08 - capBlend * 0.04;
+    }
+    mergedGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     return mergedGeometry;
   }, [jellyGeometry]);
   const baseJellyPositions = useMemo(
@@ -428,7 +447,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
         const baseX = baseJellyPositions[offset];
         const baseY = baseJellyPositions[offset + 1];
         const baseZ = baseJellyPositions[offset + 2];
-        const height = clamp((baseY + 2.1) / 4.4, 0, 1);
+        const height = clamp((baseY + 2.22) / 5.01, 0, 1);
         const envelope = Math.sin(Math.PI * height);
         const wave = jellyMotion * envelope;
         positions.setXYZ(
@@ -510,6 +529,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
           <meshPhysicalMaterial
             attach="material-0"
             color="#ef789e"
+            vertexColors
             roughness={0.08}
             metalness={0}
             clearcoat={0.88}
