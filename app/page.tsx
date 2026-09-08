@@ -324,7 +324,7 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
   source.width = sourceWidth;
-  source.height = Math.max(1, Math.round(sourceHeight * 0.78));
+  source.height = Math.max(1, Math.round(sourceHeight * 0.68));
   const sourceContext = source.getContext("2d");
   if (!sourceContext || !source.width || !source.height) return source;
 
@@ -336,7 +336,7 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
     Math.round(sourceWidth * 0.04),
     0,
     Math.round(sourceWidth * 0.92),
-    Math.round(sourceHeight * 0.78),
+    Math.round(sourceHeight * 0.68),
     0,
     0,
     source.width,
@@ -357,11 +357,11 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
       }
 
       const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
-      const shade = 0.42 + luminance * 0.72;
+      const shade = 0.5 + luminance * 0.62;
       const darkFeature = luminance < 0.2;
-      pixels.data[index] = Math.round((darkFeature ? red * 0.58 : 236 * shade) * 0.92);
-      pixels.data[index + 1] = Math.round(darkFeature ? green * 0.56 : 105 * shade);
-      pixels.data[index + 2] = Math.round(darkFeature ? blue * 0.62 : 147 * shade);
+      pixels.data[index] = Math.round(darkFeature ? 128 + red * 0.12 : 236 * shade);
+      pixels.data[index + 1] = Math.round(darkFeature ? 52 + green * 0.1 : 108 * shade);
+      pixels.data[index + 2] = Math.round(darkFeature ? 82 + blue * 0.12 : 140 * shade);
 
       // Fade the original circular edge into the surrounding volume. This is
       // what prevents the dog from looking like a separate sticker.
@@ -369,7 +369,7 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
       const dy = (y / source.height - 0.42) / 0.66;
       const edge = Math.hypot(dx, dy);
       const edgeFade = clamp(1 - Math.max(0, edge - 0.54) * 0.8, 0.32, 1);
-      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.72 * edgeFade);
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.58 * edgeFade);
     }
   }
   sourceContext.putImageData(pixels, 0, 0);
@@ -428,20 +428,23 @@ function drawFusedFallback(
   // Preserve the recognizable tumbler silhouette with continuous translucent
   // color changes: red jelly crown, soft body, and a darker weighted bottom.
   const bodyGradient = context.createLinearGradient(0, 28, 0, 520);
-  bodyGradient.addColorStop(0, "rgba(206, 55, 91, 0.82)");
-  bodyGradient.addColorStop(0.2, "rgba(239, 91, 130, 0.84)");
-  bodyGradient.addColorStop(0.34, "rgba(255, 183, 204, 0.82)");
-  bodyGradient.addColorStop(0.67, "rgba(238, 111, 159, 0.87)");
-  bodyGradient.addColorStop(0.84, "rgba(185, 54, 112, 0.9)");
-  bodyGradient.addColorStop(1, "rgba(76, 19, 65, 0.94)");
+  bodyGradient.addColorStop(0, "rgba(223, 34, 26, 0.98)");
+  bodyGradient.addColorStop(0.2, "rgba(239, 52, 37, 0.98)");
+  bodyGradient.addColorStop(0.32, "rgba(247, 117, 103, 0.9)");
+  bodyGradient.addColorStop(0.36, "rgba(255, 240, 209, 0.94)");
+  bodyGradient.addColorStop(0.62, "rgba(250, 241, 218, 0.96)");
+  bodyGradient.addColorStop(0.76, "rgba(241, 230, 204, 0.98)");
+  bodyGradient.addColorStop(0.81, "rgba(218, 208, 184, 0.98)");
+  bodyGradient.addColorStop(0.84, "rgba(82, 80, 83, 0.98)");
+  bodyGradient.addColorStop(1, "rgba(28, 28, 34, 1)");
   context.fillStyle = bodyGradient;
   context.fillRect(0, 0, width, height);
 
   const capGradient = context.createLinearGradient(80, 26, 318, 193);
-  capGradient.addColorStop(0, "rgba(255, 142, 165, 0.36)");
-  capGradient.addColorStop(0.34, "rgba(218, 48, 87, 0.36)");
-  capGradient.addColorStop(0.82, "rgba(164, 30, 72, 0.18)");
-  capGradient.addColorStop(1, "rgba(255, 184, 204, 0.03)");
+  capGradient.addColorStop(0, "rgba(255, 198, 178, 0.34)");
+  capGradient.addColorStop(0.3, "rgba(255, 85, 68, 0.22)");
+  capGradient.addColorStop(0.72, "rgba(183, 18, 28, 0.2)");
+  capGradient.addColorStop(1, "rgba(255, 216, 202, 0.08)");
   context.save();
   context.globalCompositeOperation = "screen";
   context.clip();
@@ -450,18 +453,18 @@ function drawFusedFallback(
   context.fill();
   context.restore();
 
-  const volumeShade = context.createRadialGradient(200, 210, 28, 200, 280, 284);
+  const volumeShade = context.createRadialGradient(200, 248, 34, 200, 282, 286);
   volumeShade.addColorStop(0, "rgba(255, 255, 255, 0)");
-  volumeShade.addColorStop(0.55, "rgba(126, 16, 66, 0.05)");
-  volumeShade.addColorStop(1, "rgba(53, 5, 36, 0.34)");
+  volumeShade.addColorStop(0.55, "rgba(119, 65, 52, 0.035)");
+  volumeShade.addColorStop(1, "rgba(46, 35, 42, 0.24)");
   context.globalCompositeOperation = "multiply";
   context.fillStyle = volumeShade;
   context.fillRect(0, 0, width, height);
 
   const innerScatter = context.createRadialGradient(192, 272, 10, 192, 282, 274);
   innerScatter.addColorStop(0, "rgba(255, 245, 249, 0.36)");
-  innerScatter.addColorStop(0.5, "rgba(255, 173, 202, 0.16)");
-  innerScatter.addColorStop(1, "rgba(118, 19, 68, 0.12)");
+  innerScatter.addColorStop(0.5, "rgba(255, 203, 160, 0.12)");
+  innerScatter.addColorStop(1, "rgba(118, 75, 55, 0.08)");
   context.globalCompositeOperation = "screen";
   context.fillStyle = innerScatter;
   context.fillRect(0, 0, width, height);
@@ -476,9 +479,9 @@ function drawFusedFallback(
   context.fillRect(0, 0, width, height);
 
   const dogX = 91 + Math.sin(time * 0.004) * impact * 3;
-  const dogY = 211 + motion.y * 0.15;
-  const dogWidth = 218 * (1 + impact * 0.08);
-  const dogHeight = 180 * (1 - impact * 0.06);
+  const dogY = 226 + motion.y * 0.15;
+  const dogWidth = 204 * (1 + impact * 0.08);
+  const dogHeight = 150 * (1 - impact * 0.06);
   if (dogCanvas) {
     const dogHaze = context.createRadialGradient(200, 298, 20, 200, 298, 152);
     dogHaze.addColorStop(0, "rgba(255, 219, 231, 0.2)");
@@ -490,25 +493,25 @@ function drawFusedFallback(
 
     context.globalCompositeOperation = "multiply";
     context.save();
-    context.filter = "blur(4px) saturate(0.72)";
-    context.globalAlpha = 0.2;
+    context.filter = "blur(6px) saturate(0.5)";
+    context.globalAlpha = 0.16;
     context.drawImage(dogCanvas, dogX + 3, dogY + 8, dogWidth, dogHeight);
     context.restore();
 
     context.globalCompositeOperation = "source-over";
     context.save();
-    context.filter = "blur(1.1px) saturate(0.72) contrast(0.9)";
-    context.globalAlpha = 0.62;
+    context.filter = "blur(2px) saturate(0.52) contrast(0.82)";
+    context.globalAlpha = 0.46;
     context.drawImage(dogCanvas, dogX, dogY, dogWidth, dogHeight);
     context.restore();
   }
 
   // A front refraction film crosses the dog and ties it into the same volume.
   const jellyVeil = context.createLinearGradient(58, 70, 342, 486);
-  jellyVeil.addColorStop(0, "rgba(255, 239, 246, 0.3)");
-  jellyVeil.addColorStop(0.38, "rgba(255, 192, 214, 0.1)");
-  jellyVeil.addColorStop(0.76, "rgba(230, 106, 153, 0.14)");
-  jellyVeil.addColorStop(1, "rgba(112, 22, 67, 0.22)");
+  jellyVeil.addColorStop(0, "rgba(255, 255, 255, 0.18)");
+  jellyVeil.addColorStop(0.38, "rgba(255, 242, 214, 0.08)");
+  jellyVeil.addColorStop(0.76, "rgba(224, 177, 148, 0.1)");
+  jellyVeil.addColorStop(1, "rgba(72, 53, 54, 0.2)");
   context.globalCompositeOperation = "source-over";
   context.fillStyle = jellyVeil;
   context.fillRect(0, 0, width, height);
@@ -531,9 +534,9 @@ function drawFusedFallback(
   // Tint the artwork again after the face is drawn. The color pass follows the
   // body curvature and removes the last flat, printed-surface impression.
   const submergedColor = context.createLinearGradient(54, 176, 350, 450);
-  submergedColor.addColorStop(0, "rgba(255, 226, 238, 0.12)");
-  submergedColor.addColorStop(0.52, "rgba(236, 93, 148, 0.19)");
-  submergedColor.addColorStop(1, "rgba(124, 24, 68, 0.22)");
+  submergedColor.addColorStop(0, "rgba(255, 238, 222, 0.12)");
+  submergedColor.addColorStop(0.52, "rgba(210, 155, 113, 0.16)");
+  submergedColor.addColorStop(1, "rgba(58, 38, 43, 0.24)");
   context.globalCompositeOperation = "soft-light";
   context.fillStyle = submergedColor;
   context.fillRect(0, 0, width, height);
