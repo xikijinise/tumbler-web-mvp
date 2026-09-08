@@ -405,14 +405,13 @@ function drawFusedFallback(
   const tilt = (motion.angle * Math.PI) / 180 * 0.65 + idleWobble;
   const squash = 1 + impact * 0.26;
   const stretch = 1 - impact * 0.17;
-  const driftX = clamp(motion.x, -116, 116);
-  const driftY = clamp(motion.y, -74, 74);
   const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.008;
   const shapeBulge =
     Math.sin(time * 0.006 + 1.2) * 0.8 + motion.y * 0.032 + Math.sin(time * 0.032) * impact * 1.8;
 
+  canvas.style.transform = `translate3d(${clamp(motion.x, -116, 116)}px, ${clamp(motion.y, -74, 74)}px, 0) rotate(-2deg)`;
   context.save();
-  context.translate(width / 2 + driftX, height / 2 + driftY);
+  context.translate(width / 2, height / 2);
   context.rotate(tilt);
   context.scale(squash, stretch);
   context.translate(-width / 2, -height / 2);
