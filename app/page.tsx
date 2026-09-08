@@ -794,6 +794,14 @@ export default function Home() {
               camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
               shadows
               gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+              fallback={
+                <div className="three-fallback" role="img" aria-label="果冻不倒翁预览">
+                  <div className="three-fallback-body">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- static fallback asset must follow the Pages base path. */}
+                    <img src="./custom-character.png" alt="" />
+                  </div>
+                </div>
+              }
               onCreated={({ gl }) => {
                 gl.setClearColor(0x000000, 0);
                 gl.outputColorSpace = THREE.SRGBColorSpace;
