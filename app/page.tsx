@@ -359,9 +359,16 @@ function makeFusedDogCanvas(image: HTMLImageElement) {
       const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
       const shade = 0.5 + luminance * 0.62;
       const darkFeature = luminance < 0.2;
-      pixels.data[index] = Math.round(darkFeature ? 128 + red * 0.12 : 236 * shade);
-      pixels.data[index + 1] = Math.round(darkFeature ? 52 + green * 0.1 : 108 * shade);
-      pixels.data[index + 2] = Math.round(darkFeature ? 82 + blue * 0.12 : 140 * shade);
+      const dogBlue = blue > red * 1.12 && blue > green * 1.05;
+      pixels.data[index] = Math.round(
+        darkFeature ? 92 + red * 0.1 : dogBlue ? 112 + 64 * shade : 236 * shade,
+      );
+      pixels.data[index + 1] = Math.round(
+        darkFeature ? 48 + green * 0.1 : dogBlue ? 142 + 42 * shade : 108 * shade,
+      );
+      pixels.data[index + 2] = Math.round(
+        darkFeature ? 70 + blue * 0.12 : dogBlue ? 184 + 38 * shade : 140 * shade,
+      );
 
       // Fade the original circular edge into the surrounding volume. This is
       // what prevents the dog from looking like a separate sticker.
@@ -501,9 +508,17 @@ function drawFusedFallback(
     context.globalCompositeOperation = "source-over";
     context.save();
     context.filter = "blur(2px) saturate(0.52) contrast(0.82)";
-    context.globalAlpha = 0.46;
+    context.globalAlpha = 0.56;
     context.drawImage(dogCanvas, dogX, dogY, dogWidth, dogHeight);
     context.restore();
+
+    const dogPocket = context.createRadialGradient(200, 300, 22, 200, 300, 150);
+    dogPocket.addColorStop(0, "rgba(120, 73, 70, 0.14)");
+    dogPocket.addColorStop(0.58, "rgba(120, 73, 70, 0.06)");
+    dogPocket.addColorStop(1, "rgba(120, 73, 70, 0)");
+    context.globalCompositeOperation = "multiply";
+    context.fillStyle = dogPocket;
+    context.fillRect(48, 176, 304, 274);
   }
 
   // A front refraction film crosses the dog and ties it into the same volume.
@@ -569,13 +584,42 @@ function drawFusedFallback(
   // Soft cap lip and weighted-base reflection keep the old tumbler readable
   // without splitting the object into separate render layers.
   context.globalAlpha = 0.32;
-  context.lineWidth = 8;
+  context.globalCompositeOperation = "screen";
+  context.strokeStyle = "rgba(255, 239, 214, 0.54)";
+  context.lineWidth = 11;
+  context.beginPath();
+  context.moveTo(58, 419);
+  context.bezierCurveTo(126, 443, 274, 443, 342, 419);
+  context.stroke();
+
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 0.34;
+  context.strokeStyle = "rgba(176, 21, 29, 0.5)";
+  context.lineWidth = 10;
   context.beginPath();
   context.moveTo(62, 176);
   context.bezierCurveTo(124, 191, 276, 191, 338, 176);
   context.stroke();
+
+  context.globalAlpha = 0.32;
+  context.strokeStyle = "rgba(255, 255, 255, 0.56)";
+  context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(62, 174);
+  context.bezierCurveTo(124, 188, 276, 188, 338, 174);
+  context.stroke();
+
   context.globalAlpha = 0.2;
-  context.lineWidth = 5;
+  context.strokeStyle = "rgba(255, 245, 224, 0.5)";
+  context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(58, 422);
+  context.bezierCurveTo(126, 445, 274, 445, 342, 422);
+  context.stroke();
+
+  context.globalAlpha = 0.32;
+  context.lineWidth = 8;
+  context.strokeStyle = "rgba(255, 255, 255, 0.22)";
   context.beginPath();
   context.moveTo(58, 421);
   context.bezierCurveTo(126, 448, 274, 448, 342, 421);
