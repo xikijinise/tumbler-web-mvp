@@ -2,7 +2,7 @@
 
 /* eslint-disable react/no-unknown-property -- React Three Fiber JSX props. */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   BallCollider,
@@ -48,16 +48,9 @@ export type PhysicsCommand =
   | { id: number; type: "return" }
   | { id: number; type: "reset" };
 
-export type TumblerAppearance = {
-  headImage: string | null;
-  middleImage: string | null;
-  baseImage: string | null;
-};
-
 type TumblerSceneProps = {
   commandQueueRef: { current: PhysicsCommand[] };
   onState: (state: PhysicsState) => void;
-  appearance: TumblerAppearance;
 };
 
 const INITIAL_POSITION = { x: 0, y: 0, z: 0 };
@@ -66,87 +59,13 @@ const ACTION_FORCE_GAIN = 1.75;
 const SCREEN_DEPTH_MIN = -2.05;
 const SCREEN_DEPTH_MAX = 0.82;
 const WALL_THICKNESS = 0.16;
-const BODY_SCREEN_HALF_WIDTH = 1.42;
+const BODY_SCREEN_HALF_WIDTH = 1.5;
 const BODY_SCREEN_TOP = 2.72;
-const BODY_COLLIDER_HALF_WIDTH = 1.1;
-const BODY_COLLIDER_TOP = 2.23;
+const BODY_COLLIDER_HALF_WIDTH = 1.14;
+const BODY_COLLIDER_TOP = 2.3;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function useImageTexture(source: string | null) {
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-
-  useEffect(() => {
-    if (!source) {
-      return;
-    }
-
-    let active = true;
-    const loader = new THREE.TextureLoader();
-    const loadedTexture = loader.load(
-      source,
-      (nextTexture) => {
-        nextTexture.colorSpace = THREE.SRGBColorSpace;
-        nextTexture.needsUpdate = true;
-        if (active) {
-          setTexture(nextTexture);
-        } else {
-          nextTexture.dispose();
-        }
-      },
-      undefined,
-      () => {
-        if (active) setTexture(null);
-      },
-    );
-
-    return () => {
-      active = false;
-      loadedTexture.dispose();
-    };
-  }, [source]);
-
-  return texture;
-}
-
-type FrontImageProps = {
-  texture: THREE.Texture | null;
-  position: [number, number, number];
-  maxWidth: number;
-  maxHeight: number;
-};
-
-function FrontImage({ texture, position, maxWidth, maxHeight }: FrontImageProps) {
-  if (!texture) return null;
-
-  const image = texture.image as {
-    width?: number;
-    height?: number;
-    naturalWidth?: number;
-    naturalHeight?: number;
-  };
-  const imageWidth = image.naturalWidth ?? image.width ?? 1;
-  const imageHeight = image.naturalHeight ?? image.height ?? 1;
-  const aspect = imageWidth / Math.max(imageHeight, 1);
-  const maxAspect = maxWidth / maxHeight;
-  const width = aspect > maxAspect ? maxWidth : maxHeight * aspect;
-  const height = width / Math.max(aspect, 0.01);
-
-  return (
-    <mesh position={position} renderOrder={8}>
-      <planeGeometry args={[width, height]} />
-      <meshBasicMaterial
-        map={texture}
-        transparent
-        alphaTest={0.01}
-        depthWrite={false}
-        toneMapped={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
 }
 
 function applyHit(
@@ -204,7 +123,12 @@ function applyDrag(body: RapierRigidBody, dx: number, dy: number, impactRef: { c
   );
 }
 
-function applyRelease(body: RapierRigidBody, totalX: number, totalY: number, impactRef: { current: number }) {
+function applyRelease(
+  body: RapierRigidBody,
+  totalX: number,
+  totalY: number,
+  impactRef: { current: number },
+) {
   body.wakeUp();
   body.applyImpulse(
     {
@@ -238,8 +162,9 @@ function resetBody(body: RapierRigidBody, impactRef: { current: number }) {
   impactRef.current = 0;
 }
 
-function TumblerBody({ commandQueueRef, onState, appearance }: TumblerSceneProps) {
+function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
   const bodyRef = useRef<RapierRigidBody | null>(null);
+  const visualGroupRef = useRef<THREE.Group | null>(null);
   const impactRef = useRef(0);
   const returningRef = useRef(false);
   const reportClockRef = useRef(0);
@@ -247,33 +172,27 @@ function TumblerBody({ commandQueueRef, onState, appearance }: TumblerSceneProps
   const uprightQuaternionRef = useRef(new THREE.Quaternion());
   const uprightEulerRef = useRef(new THREE.Euler());
   const identityQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const headTexture = useImageTexture(appearance.headImage);
-  const middleTexture = useImageTexture(appearance.middleImage);
-  const baseTexture = useImageTexture(appearance.baseImage);
-  const bodyProfile = useMemo(
+  const jellyTargetScaleRef = useRef(new THREE.Vector3(1.12, 1.12, 1.12));
+  const jellyMotionRef = useRef(0);
+  const jellyProfile = useMemo(
     () => [
-      new THREE.Vector2(0.02, -1.9),
-      new THREE.Vector2(0.58, -1.88),
-      new THREE.Vector2(0.96, -1.64),
-      new THREE.Vector2(1.12, -1.15),
-      new THREE.Vector2(1.17, -0.45),
-      new THREE.Vector2(1.1, 0.22),
-      new THREE.Vector2(0.93, 0.82),
-      new THREE.Vector2(0.79, 1.2),
-      new THREE.Vector2(0.76, 1.46),
-    ],
-    [],
-  );
-
-  const capProfile = useMemo(
-    () => [
-      new THREE.Vector2(0.02, 1.43),
-      new THREE.Vector2(0.5, 1.47),
-      new THREE.Vector2(0.78, 1.62),
-      new THREE.Vector2(0.83, 1.86),
-      new THREE.Vector2(0.66, 2.16),
-      new THREE.Vector2(0.36, 2.35),
-      new THREE.Vector2(0.02, 2.42),
+      new THREE.Vector2(0.015, -2.08),
+      new THREE.Vector2(0.28, -2.07),
+      new THREE.Vector2(0.62, -1.99),
+      new THREE.Vector2(0.91, -1.8),
+      new THREE.Vector2(1.12, -1.52),
+      new THREE.Vector2(1.23, -1.17),
+      new THREE.Vector2(1.26, -0.68),
+      new THREE.Vector2(1.25, -0.18),
+      new THREE.Vector2(1.2, 0.35),
+      new THREE.Vector2(1.11, 0.82),
+      new THREE.Vector2(0.99, 1.2),
+      new THREE.Vector2(0.89, 1.48),
+      new THREE.Vector2(0.86, 1.7),
+      new THREE.Vector2(0.76, 1.91),
+      new THREE.Vector2(0.58, 2.1),
+      new THREE.Vector2(0.33, 2.23),
+      new THREE.Vector2(0.015, 2.29),
     ],
     [],
   );
@@ -393,6 +312,31 @@ function TumblerBody({ commandQueueRef, onState, appearance }: TumblerSceneProps
       }
     }
 
+    const motionTarget = clamp(
+      impactRef.current * 0.8 +
+        Math.hypot(angularVelocity.x, angularVelocity.z) * 0.07 +
+        Math.hypot(linearVelocity.x, linearVelocity.y) * 0.025,
+      0,
+      1,
+    );
+    jellyMotionRef.current = THREE.MathUtils.lerp(
+      jellyMotionRef.current,
+      motionTarget,
+      1 - Math.exp(-delta * 9),
+    );
+    if (visualGroupRef.current) {
+      const jellyMotion = jellyMotionRef.current;
+      jellyTargetScaleRef.current.set(
+        1.12 * (1 + jellyMotion * 0.045),
+        1.12 * (1 - jellyMotion * 0.055),
+        1.12 * (1 + jellyMotion * 0.02),
+      );
+      visualGroupRef.current.scale.lerp(
+        jellyTargetScaleRef.current,
+        1 - Math.exp(-delta * 12),
+      );
+    }
+
     const stateTranslation = body.translation();
     const stateRotation = body.rotation();
     const stateLinearVelocity = body.linvel();
@@ -412,7 +356,8 @@ function TumblerBody({ commandQueueRef, onState, appearance }: TumblerSceneProps
       ),
       "XYZ",
     );
-    const signedTilt = Math.sign(euler.z || euler.x || 1) *
+    const signedTilt =
+      Math.sign(euler.z || euler.x || 1) *
       THREE.MathUtils.radToDeg(Math.hypot(euler.x, euler.z));
     const state: PhysicsState = {
       angle: clamp(signedTilt, -89, 89),
@@ -437,68 +382,45 @@ function TumblerBody({ commandQueueRef, onState, appearance }: TumblerSceneProps
       ref={bodyRef}
       colliders={false}
       position={[0, 0, 0]}
-      linearDamping={0.25}
-      angularDamping={0.9}
+      linearDamping={0.3}
+      angularDamping={0.82}
       canSleep={false}
       friction={0.9}
-      restitution={0.08}
+      restitution={0.12}
     >
-      <group scale={1.12}>
-          <mesh castShadow receiveShadow>
-            <latheGeometry args={[bodyProfile, 96]} />
-            <meshStandardMaterial
-            color="#e9e2cd"
-            roughness={0.25}
-            metalness={0.02}
-          />
-        </mesh>
-
-        <mesh castShadow receiveShadow position={[0, -1.42, 0]} scale={[1, 0.62, 1]}>
-          <sphereGeometry args={[1.15, 96, 48]} />
-          <meshStandardMaterial
-            color="#303631"
-            roughness={0.38}
-            metalness={0.12}
-          />
-        </mesh>
-
+      <group ref={visualGroupRef} scale={1.12}>
         <mesh castShadow receiveShadow>
-          <latheGeometry args={[capProfile, 96]} />
-          <meshStandardMaterial
-            color="#c94f44"
-            roughness={0.23}
-            metalness={0.04}
+          <latheGeometry args={[jellyProfile, 128]} />
+          <meshPhysicalMaterial
+            color="#ef789e"
+            roughness={0.14}
+            metalness={0}
+            clearcoat={0.72}
+            clearcoatRoughness={0.12}
+            transmission={0.2}
+            thickness={1.35}
+            ior={1.33}
+            attenuationColor="#ffd2df"
+            attenuationDistance={2.4}
+            transparent
+            opacity={0.96}
           />
         </mesh>
-
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 1.46, 0]}>
-          <torusGeometry args={[0.8, 0.065, 20, 96]} />
-          <meshStandardMaterial color="#a63832" roughness={0.28} metalness={0.08} />
-        </mesh>
-
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 1.34, 0]}>
-          <torusGeometry args={[0.78, 0.018, 12, 96]} />
-          <meshStandardMaterial color="#b8b09f" roughness={0.5} metalness={0.04} />
-        </mesh>
-
-        <FrontImage texture={headTexture} position={[0, 1.92, 0.86]} maxWidth={0.98} maxHeight={0.82} />
-        <FrontImage texture={middleTexture} position={[0, -0.08, 1.18]} maxWidth={1.55} maxHeight={1.9} />
-        <FrontImage texture={baseTexture} position={[0, -1.43, 1.18]} maxWidth={1.7} maxHeight={0.78} />
       </group>
 
       <BallCollider
-        args={[1.08]}
-        position={[0, -1.32, 0]}
-        density={1.4}
+        args={[1.1]}
+        position={[0, -1.42, 0]}
+        density={1.45}
         friction={1.3}
-        restitution={0.05}
+        restitution={0.08}
       />
       <CapsuleCollider
-        args={[1.1, 0.88]}
-        position={[0, 0.25, 0]}
+        args={[1.1, 0.9]}
+        position={[0, 0.22, 0]}
         density={0.18}
         friction={0.82}
-        restitution={0.08}
+        restitution={0.12}
       />
     </RigidBody>
   );
@@ -571,38 +493,28 @@ function BoundaryWalls() {
   );
 }
 
-function PhysicsStage({ commandQueueRef, onState, appearance }: TumblerSceneProps) {
+function PhysicsStage({ commandQueueRef, onState }: TumblerSceneProps) {
   return (
     <Physics gravity={[0, -9.81, 0]} timeStep="vary" interpolate={false}>
-      <ambientLight intensity={1.7} color="#fff8e9" />
-      <hemisphereLight args={["#fff8e9", "#59645b", 1.9]} />
+      <ambientLight intensity={1.35} color="#fff4f7" />
+      <hemisphereLight args={["#fff8fb", "#87445b", 1.7]} />
       <directionalLight
         castShadow
-        intensity={4.1}
+        intensity={4.2}
         color="#ffffff"
         position={[-4, 7, 8]}
         shadow-mapSize={[1024, 1024]}
       />
-      <directionalLight intensity={2.1} color="#cfe9ff" position={[5, 3, -5]} />
-      <pointLight intensity={1.45} color="#ffb16c" distance={12} position={[-3, 1, 5]} />
+      <directionalLight intensity={1.65} color="#d7eaff" position={[5, 3, -5]} />
+      <pointLight intensity={1.3} color="#ffb8c9" distance={12} position={[-3, 1, 5]} />
 
       <BoundaryWalls />
 
-      <TumblerBody
-        commandQueueRef={commandQueueRef}
-        onState={onState}
-        appearance={appearance}
-      />
+      <TumblerBody commandQueueRef={commandQueueRef} onState={onState} />
     </Physics>
   );
 }
 
-export function TumblerScene({ commandQueueRef, onState, appearance }: TumblerSceneProps) {
-  return (
-    <PhysicsStage
-      commandQueueRef={commandQueueRef}
-      onState={onState}
-      appearance={appearance}
-    />
-  );
+export function TumblerScene({ commandQueueRef, onState }: TumblerSceneProps) {
+  return <PhysicsStage commandQueueRef={commandQueueRef} onState={onState} />;
 }
