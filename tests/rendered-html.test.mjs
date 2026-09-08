@@ -75,6 +75,8 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /setAutoEnabled/);
   assert.match(page, /模拟随机输入/);
   assert.match(page, /three-fallback/);
+  assert.match(page, /canUseWebGL/);
+  assert.match(page, /webglStatus/);
   assert.match(page, /totalInputCount/);
   assert.match(page, /recordInput/);
   assert.match(page, /corner-footer/);
