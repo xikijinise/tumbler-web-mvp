@@ -70,10 +70,11 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /increment_input_count/);
   assert.match(page, /fetchGlobalInputCount/);
   assert.match(page, /incrementGlobalInputCount/);
-  assert.doesNotMatch(page, /custom-character\.png|tumbler-real\.png|handleImageChange|IMAGE PARTS/);
+  assert.doesNotMatch(page, /tumbler-real\.png|handleImageChange|IMAGE PARTS/);
   assert.match(page, /autoEnabled/);
   assert.match(page, /setAutoEnabled/);
   assert.match(page, /模拟随机输入/);
+  assert.match(page, /three-fallback/);
   assert.match(page, /totalInputCount/);
   assert.match(page, /recordInput/);
   assert.match(page, /corner-footer/);
@@ -140,6 +141,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(css, /perspective:\s*1100px/);
   assert.match(css, /\.three-stage/);
   assert.match(css, /\.three-stage canvas/);
+  assert.match(css, /\.three-fallback/);
   assert.doesNotMatch(css, /board-crosshair|impact-rings|ground-marker|impact-wave/);
   assert.doesNotMatch(css, /is-flashing|filter:\s*brightness/);
   assert.doesNotMatch(css, /\.telemetry-panel|\.action-grid|\.side-column/);
