@@ -111,9 +111,16 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
       const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
       const shade = 0.5 + luminance * 0.62;
       const darkFeature = luminance < 0.2;
-      pixels.data[index] = Math.round(darkFeature ? 128 + red * 0.12 : 236 * shade);
-      pixels.data[index + 1] = Math.round(darkFeature ? 52 + green * 0.1 : 108 * shade);
-      pixels.data[index + 2] = Math.round(darkFeature ? 82 + blue * 0.12 : 140 * shade);
+      const dogBlue = blue > red * 1.12 && blue > green * 1.05;
+      pixels.data[index] = Math.round(
+        darkFeature ? 92 + red * 0.1 : dogBlue ? 112 + 64 * shade : 236 * shade,
+      );
+      pixels.data[index + 1] = Math.round(
+        darkFeature ? 48 + green * 0.1 : dogBlue ? 142 + 42 * shade : 108 * shade,
+      );
+      pixels.data[index + 2] = Math.round(
+        darkFeature ? 70 + blue * 0.12 : dogBlue ? 184 + 38 * shade : 140 * shade,
+      );
       const dx = (x / canvas.width - 0.5) / 0.53;
       const dy = (y / canvas.height - 0.42) / 0.66;
       const edge = Math.hypot(dx, dy);
