@@ -375,13 +375,14 @@ function drawFusedFallback(
 
   const impact = clamp(motion.impact, 0, 1.35);
   const idleWobble = Math.sin(time * 0.0024) * 0.014;
-  const tilt = (motion.angle * Math.PI) / 180 * 0.48 + idleWobble;
-  const squash = 1 + impact * 0.12;
-  const stretch = 1 - impact * 0.07;
+  const tilt = (motion.angle * Math.PI) / 180 * 0.7 + idleWobble;
+  const squash = 1 + impact * 0.2;
+  const stretch = 1 - impact * 0.13;
   const driftX = clamp(motion.x * 1.08, -24, 24);
   const driftY = clamp(motion.y * 0.64, -18, 18);
-  const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.009;
-  const shapeBulge = Math.sin(time * 0.006 + 1.2) * 0.8 + motion.y * 0.012;
+  const shapeWobble = Math.sin(time * 0.005) * 0.72 + motion.x * 0.02;
+  const shapeBulge =
+    Math.sin(time * 0.006 + 1.2) * 0.8 + motion.y * 0.032 + Math.sin(time * 0.032) * impact * 1.8;
 
   context.save();
   context.translate(width / 2 + driftX, height / 2 + driftY);
@@ -482,7 +483,17 @@ function drawFusedFallback(
   lowerCaustic.addColorStop(0.5, "rgba(255, 189, 216, 0.13)");
   lowerCaustic.addColorStop(1, "rgba(255, 255, 255, 0)");
   context.fillStyle = lowerCaustic;
-  context.fillRect(50, 388, 300, 110);
+  context.fillRect(0, 0, width, height);
+
+  // Tint the artwork again after the face is drawn. The color pass follows the
+  // body curvature and removes the last flat, printed-surface impression.
+  const submergedColor = context.createLinearGradient(54, 100, 350, 396);
+  submergedColor.addColorStop(0, "rgba(255, 226, 238, 0.12)");
+  submergedColor.addColorStop(0.52, "rgba(236, 93, 148, 0.19)");
+  submergedColor.addColorStop(1, "rgba(124, 24, 68, 0.22)");
+  context.globalCompositeOperation = "soft-light";
+  context.fillStyle = submergedColor;
+  context.fillRect(0, 0, width, height);
 
   context.globalAlpha = 0.62;
   context.strokeStyle = "rgba(255, 255, 255, 0.56)";
@@ -491,6 +502,13 @@ function drawFusedFallback(
   context.beginPath();
   context.moveTo(103, 96);
   context.bezierCurveTo(72, 154, 78, 244, 108, 310);
+  context.stroke();
+
+  context.globalAlpha = 0.22;
+  context.lineWidth = 9;
+  context.beginPath();
+  context.moveTo(137, 146);
+  context.bezierCurveTo(174, 174, 238, 182, 279, 160);
   context.stroke();
 
   context.globalAlpha = 0.28;
@@ -528,10 +546,10 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
     const render = (time: number) => {
       if (!active) return;
       drawFusedFallback(canvas, dogCanvas, motionRef.current, time);
-      motionRef.current.angle *= 0.93;
-      motionRef.current.x *= 0.93;
-      motionRef.current.y *= 0.93;
-      motionRef.current.impact *= 0.91;
+      motionRef.current.angle *= 0.965;
+      motionRef.current.x *= 0.955;
+      motionRef.current.y *= 0.955;
+      motionRef.current.impact *= 0.955;
       animationFrame = window.requestAnimationFrame(render);
     };
     image.onload = () => {
@@ -1280,8 +1298,3 @@ export default function Home() {
         <div className="corner corner-hint" aria-hidden="true">
           <span className="hint-dot" />
           <span>失衡是反馈，不是失败</span>
-        </div>
-      </section>
-    </main>
-  );
-}
