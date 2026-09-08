@@ -89,6 +89,13 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
     const isYellowBackdrop =
       red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
     if (isYellowBackdrop) pixels.data[index + 3] = 0;
+    if (!isYellowBackdrop) {
+      const jellyTint = 0.16;
+      pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
+      pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
+      pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.82);
+    }
   }
   context.putImageData(pixels, 0, 0);
 
@@ -466,16 +473,16 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
           <meshPhysicalMaterial
             attach="material-1"
             map={fusedDogTexture}
-            color="#ffffff"
-            roughness={0.18}
+            color="#ffd4df"
+            roughness={0.15}
             metalness={0}
-            clearcoat={0.64}
-            clearcoatRoughness={0.14}
-            transmission={0.08}
-            thickness={0.7}
+            clearcoat={0.72}
+            clearcoatRoughness={0.1}
+            transmission={0.3}
+            thickness={1.05}
             ior={1.33}
             transparent
-            opacity={0.98}
+            opacity={0.82}
             alphaTest={0.01}
             depthWrite={false}
             toneMapped={false}
