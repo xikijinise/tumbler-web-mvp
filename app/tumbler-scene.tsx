@@ -90,11 +90,11 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
       red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
     if (isYellowBackdrop) pixels.data[index + 3] = 0;
     if (!isYellowBackdrop) {
-      const jellyTint = 0.16;
+      const jellyTint = 0.52;
       pixels.data[index] = Math.round(red * (1 - jellyTint) + 255 * jellyTint);
       pixels.data[index + 1] = Math.round(green * (1 - jellyTint) + 170 * jellyTint);
       pixels.data[index + 2] = Math.round(blue * (1 - jellyTint) + 196 * jellyTint);
-      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.82);
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.58);
     }
   }
   context.putImageData(pixels, 0, 0);
@@ -410,9 +410,9 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
         const wave = jellyMotion * envelope;
         positions.setXYZ(
           index,
-          baseX + Math.sin(time * 8 + baseY * 2.1 + baseX * 1.7) * wave * 0.035,
-          baseY + Math.cos(time * 7 + baseX * 1.4) * wave * 0.018,
-          baseZ + Math.sin(time * 9 + baseX * 1.2 + baseY) * wave * 0.045,
+          baseX + Math.sin(time * 8 + baseY * 2.1 + baseX * 1.7) * wave * 0.07,
+          baseY + Math.cos(time * 7 + baseX * 1.4) * wave * 0.035,
+          baseZ + Math.sin(time * 9 + baseX * 1.2 + baseY) * wave * 0.09,
         );
       }
       positions.needsUpdate = true;
@@ -421,9 +421,9 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     }
     if (visualGroupRef.current) {
       jellyTargetScaleRef.current.set(
+        1.12 * (1 + jellyMotion * 0.1),
+        1.12 * (1 - jellyMotion * 0.08),
         1.12 * (1 + jellyMotion * 0.045),
-        1.12 * (1 - jellyMotion * 0.055),
-        1.12 * (1 + jellyMotion * 0.02),
       );
       visualGroupRef.current.scale.lerp(
         jellyTargetScaleRef.current,
@@ -491,27 +491,27 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
             metalness={0}
             clearcoat={0.72}
             clearcoatRoughness={0.12}
-            transmission={0.2}
-            thickness={1.35}
-            ior={1.33}
+            transmission={0.42}
+            thickness={1.55}
+            ior={1.42}
             attenuationColor="#ffd2df"
             attenuationDistance={2.4}
             transparent
-            opacity={0.96}
+            opacity={0.9}
           />
           <meshPhysicalMaterial
             attach="material-1"
             map={fusedDogTexture}
-            color="#ffd4df"
+            color="#ffc6d8"
             roughness={0.15}
             metalness={0}
             clearcoat={0.72}
             clearcoatRoughness={0.1}
-            transmission={0.3}
-            thickness={1.05}
-            ior={1.33}
+            transmission={0.42}
+            thickness={1.35}
+            ior={1.42}
             transparent
-            opacity={0.82}
+            opacity={0.68}
             alphaTest={0.01}
             depthWrite={false}
             toneMapped={false}
