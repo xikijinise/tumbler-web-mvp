@@ -76,7 +76,7 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
   canvas.width = sourceWidth;
-  canvas.height = Math.max(1, Math.round(sourceHeight * 0.78));
+  canvas.height = Math.max(1, Math.round(sourceHeight * 0.68));
   const context = canvas.getContext("2d");
   if (!context || !canvas.width || !canvas.height) {
     throw new Error("Unable to prepare the dog head texture");
@@ -88,7 +88,7 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
     Math.round(sourceWidth * 0.04),
     0,
     Math.round(sourceWidth * 0.92),
-    Math.round(sourceHeight * 0.78),
+    Math.round(sourceHeight * 0.68),
     0,
     0,
     canvas.width,
@@ -109,16 +109,16 @@ function createFusedDogTexture(sourceTexture: THREE.Texture) {
       }
 
       const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
-      const shade = 0.42 + luminance * 0.72;
+      const shade = 0.5 + luminance * 0.62;
       const darkFeature = luminance < 0.2;
-      pixels.data[index] = Math.round((darkFeature ? red * 0.58 : 236 * shade) * 0.92);
-      pixels.data[index + 1] = Math.round(darkFeature ? green * 0.56 : 105 * shade);
-      pixels.data[index + 2] = Math.round(darkFeature ? blue * 0.62 : 147 * shade);
+      pixels.data[index] = Math.round(darkFeature ? 128 + red * 0.12 : 236 * shade);
+      pixels.data[index + 1] = Math.round(darkFeature ? 52 + green * 0.1 : 108 * shade);
+      pixels.data[index + 2] = Math.round(darkFeature ? 82 + blue * 0.12 : 140 * shade);
       const dx = (x / canvas.width - 0.5) / 0.53;
       const dy = (y / canvas.height - 0.42) / 0.66;
       const edge = Math.hypot(dx, dy);
       const edgeFade = Math.min(1, Math.max(0.32, 1 - Math.max(0, edge - 0.54) * 0.8));
-      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.72 * edgeFade);
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * 0.58 * edgeFade);
     }
   }
   context.putImageData(pixels, 0, 0);
@@ -292,13 +292,22 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     const colors = new Float32Array(positions.count * 3);
     for (let index = 0; index < positions.count; index += 1) {
       const y = positions.getY(index);
-      const bodyBlend = clamp((y + 1.6) / 3.25, 0, 1);
-      const baseBlend = clamp((-y - 1.25) / 1.1, 0, 1);
-      const capBlend = clamp((y - 1.58) / 1.2, 0, 1);
+      const baseBlend = clamp((-y - 1.12) / 0.62, 0, 1);
+      const capBlend = clamp((y - 1.5) / 0.72, 0, 1);
+      const bodyRed = 0.98;
+      const bodyGreen = 0.9;
+      const bodyBlue = 0.76;
+      const capRed = 0.94;
+      const capGreen = 0.08;
+      const capBlue = 0.04;
+      const baseRed = 0.1;
+      const baseGreen = 0.1;
+      const baseBlue = 0.12;
+      const middle = 1 - Math.max(baseBlend, capBlend);
       const offset = index * 3;
-      colors[offset] = 0.86 + bodyBlend * 0.12 - baseBlend * 0.48 + capBlend * 0.04;
-      colors[offset + 1] = 0.3 + bodyBlend * 0.34 - baseBlend * 0.12 + capBlend * 0.02;
-      colors[offset + 2] = 0.48 + bodyBlend * 0.14 - baseBlend * 0.08 - capBlend * 0.04;
+      colors[offset] = bodyRed * middle + capRed * capBlend + baseRed * baseBlend;
+      colors[offset + 1] = bodyGreen * middle + capGreen * capBlend + baseGreen * baseBlend;
+      colors[offset + 2] = bodyBlue * middle + capBlue * capBlend + baseBlue * baseBlend;
     }
     mergedGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     return mergedGeometry;
@@ -528,7 +537,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
         <mesh geometry={combinedJellyGeometry} castShadow receiveShadow>
           <meshPhysicalMaterial
             attach="material-0"
-            color="#ef789e"
+            color="#f7ead4"
             vertexColors
             roughness={0.08}
             metalness={0}
@@ -537,7 +546,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
             transmission={0.7}
             thickness={1.7}
             ior={1.38}
-            attenuationColor="#ffd2df"
+            attenuationColor="#fff0d7"
             attenuationDistance={2.1}
             transparent
             opacity={0.86}
@@ -545,7 +554,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
           <meshPhysicalMaterial
             attach="material-1"
             map={fusedDogTexture}
-            color="#f2a0ba"
+            color="#c77888"
             roughness={0.28}
             metalness={0}
             clearcoat={0.24}
