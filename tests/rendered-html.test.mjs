@@ -75,6 +75,9 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /setAutoEnabled/);
   assert.match(page, /模拟随机输入/);
   assert.match(page, /three-fallback/);
+  assert.match(page, /drawFusedFallback/);
+  assert.match(page, /makeFusedDogCanvas/);
+  assert.match(page, /new Image\(\)/);
   assert.match(page, /canUseWebGL/);
   assert.match(page, /webglStatus/);
   assert.match(page, /totalInputCount/);
@@ -118,6 +121,7 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(scene, /jellyProfile/);
   assert.match(scene, /custom-character\.png/);
   assert.match(scene, /TextureLoader, "\.\/custom-character\.png"/);
+  assert.match(scene, /createFusedDogTexture/);
   assert.match(scene, /DecalGeometry/);
   assert.match(scene, /mergeGeometries/);
   assert.match(scene, /combinedJellyGeometry/);
