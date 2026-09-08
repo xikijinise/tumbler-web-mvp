@@ -78,6 +78,8 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /drawFusedFallback/);
   assert.match(page, /makeFusedDogCanvas/);
   assert.match(page, /new Image\(\)/);
+  assert.match(page, /isMobileRenderingEnvironment/);
+  assert.match(page, /pointer: coarse/);
   assert.match(page, /canUseWebGL/);
   assert.match(page, /webglStatus/);
   assert.match(page, /totalInputCount/);
