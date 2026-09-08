@@ -258,6 +258,14 @@ function canUseWebGL() {
   return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
 }
 
+function isMobileRenderingEnvironment() {
+  if (typeof window === "undefined") return true;
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+  const narrowViewport = Math.min(window.innerWidth, window.innerHeight) <= 820;
+  return mobileUserAgent || coarsePointer || narrowViewport;
+}
+
 function drawJellyPath(context: CanvasRenderingContext2D) {
   context.beginPath();
   context.moveTo(180, 22);
@@ -512,7 +520,8 @@ export default function Home() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setWebglStatus(canUseWebGL() ? "available" : "unavailable");
+      const useThree = !isMobileRenderingEnvironment() && canUseWebGL();
+      setWebglStatus(useThree ? "available" : "unavailable");
     }, 0);
 
     return () => window.clearTimeout(timer);
