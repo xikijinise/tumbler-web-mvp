@@ -2,7 +2,7 @@
 
 /* eslint-disable react/no-unknown-property -- React Three Fiber JSX props. */
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import {
   BallCollider,
@@ -68,6 +68,34 @@ const BODY_COLLIDER_TOP = 2.3;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function createFusedDogTexture(sourceTexture: THREE.Texture) {
+  const image = sourceTexture.image as HTMLImageElement;
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  const context = canvas.getContext("2d");
+  if (!context || !canvas.width || !canvas.height) {
+    throw new Error("Unable to prepare the dog head texture");
+  }
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const red = pixels.data[index];
+    const green = pixels.data[index + 1];
+    const blue = pixels.data[index + 2];
+    const isYellowBackdrop =
+      red > 160 && green > 130 && blue < 150 && red > blue * 1.45 && green > blue * 1.3;
+    if (isYellowBackdrop) pixels.data[index + 3] = 0;
+  }
+  context.putImageData(pixels, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function applyHit(
@@ -203,6 +231,11 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
     [jellyProfile],
   );
   const dogTexture = useLoader(THREE.TextureLoader, "./custom-character.png");
+  const fusedDogTexture = useMemo(
+    () => createFusedDogTexture(dogTexture),
+    [dogTexture],
+  );
+  useEffect(() => () => fusedDogTexture.dispose(), [fusedDogTexture]);
   const combinedJellyGeometry = useMemo(() => {
     const projector = new THREE.Mesh(jellyGeometry);
     const dogDecalGeometry = new DecalGeometry(
@@ -432,7 +465,7 @@ function TumblerBody({ commandQueueRef, onState }: TumblerSceneProps) {
           />
           <meshPhysicalMaterial
             attach="material-1"
-            map={dogTexture}
+            map={fusedDogTexture}
             color="#ffffff"
             roughness={0.18}
             metalness={0}
