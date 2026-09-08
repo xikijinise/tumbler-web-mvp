@@ -23,13 +23,14 @@ async function render() {
   );
 }
 
-test("server-renders the tumbler experiment", async () => {
+test("server-renders the jelly tumbler experiment", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>不倒翁互动实验 · MVP<\/title>/i);
+  assert.match(html, /<title>果冻不倒翁互动实验 · MVP<\/title>/i);
+  assert.match(html, /果冻不倒翁/);
   assert.match(html, /互动实验/);
   assert.doesNotMatch(html, /ROLY-POLY \/ TEST 02/);
   assert.match(html, /操作说明/);
@@ -37,7 +38,7 @@ test("server-renders the tumbler experiment", async () => {
   assert.match(html, /等等就好了/);
   assert.match(html, /自动/);
   assert.match(html, /全站历史/);
-  assert.match(html, /LIVE \/ RAPIER 3D/);
+  assert.match(html, /LIVE \/ JELLY PHYSICS/);
   assert.match(html, /three-stage/);
   assert.doesNotMatch(html, /board-crosshair|impact-rings|ground-marker/);
   assert.match(html, /role="application"/);
@@ -62,7 +63,6 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /setHelpOpen/);
   assert.match(page, /settingsOpen/);
   assert.match(page, /settings-panel/);
-  assert.match(page, /handleImageChange/);
   assert.match(page, /SETTINGS_STORAGE_KEY/);
   assert.match(page, /HISTORY_COUNT_STORAGE_KEY/);
   assert.match(page, /SUPABASE_PROJECT_URL/);
@@ -70,13 +70,14 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /increment_input_count/);
   assert.match(page, /fetchGlobalInputCount/);
   assert.match(page, /incrementGlobalInputCount/);
-  assert.match(page, /custom-character\.png/);
+  assert.doesNotMatch(page, /custom-character\.png|tumbler-real\.png|handleImageChange|IMAGE PARTS/);
   assert.match(page, /autoEnabled/);
   assert.match(page, /setAutoEnabled/);
   assert.match(page, /模拟随机输入/);
   assert.match(page, /totalInputCount/);
   assert.match(page, /recordInput/);
   assert.match(page, /corner-footer/);
+  assert.doesNotMatch(page, /\bAI\b|OpenAI|核云|智能助手/i);
   assert.match(page, /speechText/);
   assert.match(page, /speechPosition/);
   assert.match(page, /makeSpeechPosition/);
@@ -111,19 +112,23 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(scene, /sideWallX/);
   assert.match(scene, /frontWallZ/);
   assert.match(scene, /ACTION_FORCE_GAIN/);
-  assert.match(scene, /TumblerAppearance/);
-  assert.match(scene, /useImageTexture/);
+  assert.match(scene, /jellyProfile/);
+  assert.match(scene, /<meshPhysicalMaterial/);
+  assert.match(scene, /transmission=/);
+  assert.match(scene, /visualGroupRef/);
+  assert.match(scene, /jellyMotion/);
   assert.match(scene, /returningRef/);
-  assert.match(scene, /function FrontImage/);
-  assert.match(scene, /planeGeometry/);
-  assert.match(scene, /meshBasicMaterial/);
+  assert.doesNotMatch(scene, /useImageTexture|FrontImage|planeGeometry|meshBasicMaterial|tumbler-real/);
   assert.match(scene, /applyTorqueImpulse/);
   assert.match(scene, /useFrame/);
   assert.match(scene, /latheGeometry/);
   assert.match(scene, /uprightEuler/);
+  assert.doesNotMatch(scene, /\bAI\b|OpenAI|核云|智能助手/i);
   assert.doesNotMatch(page, /board-crosshair|impact-rings|ground-marker|impact-wave|ROLY-POLY \/ TEST 02|brand-rule|board-texture|momentum-line/);
   assert.match(css, /--paper:\s*#ffffff/);
-  assert.match(css, /\.experiment-board[\s\S]*background:\s*#fff/);
+  assert.match(css, /\.experiment-board[\s\S]*background:[\s\S]*#fff/);
+  assert.match(css, /--lime:\s*#e58aa9/);
+  assert.match(css, /\.subject-zone::before/);
   assert.doesNotMatch(css, /background:\s*#e9e8e0/);
   assert.match(css, /\.subject-zone/);
   assert.match(css, /\.subject-zone[\s\S]*inset:\s*0/);
@@ -132,14 +137,13 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(css, /\.three-stage canvas/);
   assert.doesNotMatch(css, /board-crosshair|impact-rings|ground-marker|impact-wave/);
   assert.doesNotMatch(css, /is-flashing|filter:\s*brightness/);
-  assert.doesNotMatch(page, /tumbler-real\.png/);
   assert.doesNotMatch(css, /\.telemetry-panel|\.action-grid|\.side-column/);
   for (const key of ["left", "right", "uppercut", "stomp", "spin", "backhand", "forward", "super"]) {
     assert.match(page, new RegExp(`id: "${key}"`));
   }
 
   assert.match(layout, /lang="zh-CN"/);
-  assert.match(layout, /不倒翁互动实验 · MVP/);
+  assert.match(layout, /果冻不倒翁互动实验 · MVP/);
   assert.doesNotMatch(page, /SkeletonPreview|react-loading-skeleton|codex-preview/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await access(new URL("../public/tumbler-real.png", import.meta.url));
