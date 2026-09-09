@@ -275,14 +275,6 @@ function canUseWebGL() {
   return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
 }
 
-function isMobileRenderingEnvironment() {
-  if (typeof window === "undefined") return true;
-  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const narrowViewport = Math.min(window.innerWidth, window.innerHeight) <= 820;
-  return mobileUserAgent || coarsePointer || narrowViewport;
-}
-
 function drawJellyPath(context: CanvasRenderingContext2D, wobble = 0, bulge = 0) {
   const sway = wobble * 5;
   const lowerBulge = bulge * 8;
@@ -866,7 +858,9 @@ export default function Home() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const useThree = !isMobileRenderingEnvironment() && canUseWebGL();
+      // Use the real Three.js/Rapier scene on phones too. Only fall back to
+      // the 2D preview when the browser genuinely cannot create WebGL.
+      const useThree = canUseWebGL();
       setWebglStatus(useThree ? "available" : "unavailable");
     }, 0);
 
