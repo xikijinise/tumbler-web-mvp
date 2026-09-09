@@ -774,6 +774,8 @@ export default function Home() {
     startY: 0,
     lastX: 0,
     lastY: 0,
+    startMotionX: 0,
+    startMotionY: 0,
   });
 
   const [display, setDisplay] = useState<PhysicsState>({ ...INITIAL_PHYSICS });
@@ -1157,11 +1159,13 @@ export default function Home() {
         startY: event.clientY,
         lastX: event.clientX,
         lastY: event.clientY,
+        startMotionX: fallbackMotion.x,
+        startMotionY: fallbackMotion.y,
       };
       setIsDragging(false);
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [stopPointerRepeat],
+    [fallbackMotion.x, fallbackMotion.y, stopPointerRepeat],
   );
 
   const handleStagePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1189,8 +1193,8 @@ export default function Home() {
       });
       setFallbackMotion((current) => ({
         angle: clamp(current.angle + dx * 0.22, -18, 18),
-        x: clamp(current.x + dx * 0.9, -window.innerWidth, window.innerWidth),
-        y: clamp(current.y + dy * 0.72, -window.innerHeight, window.innerHeight),
+        x: clamp(drag.startMotionX + totalX, -window.innerWidth, window.innerWidth),
+        y: clamp(drag.startMotionY + totalY, -window.innerHeight, window.innerHeight),
         impact: clamp(current.impact + (Math.abs(dx) + Math.abs(dy)) / 80, 0, 1.3),
       }));
     }
