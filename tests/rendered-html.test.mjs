@@ -78,8 +78,8 @@ test("keeps the interaction model in the MVP source", async () => {
   assert.match(page, /drawFusedFallback/);
   assert.match(page, /makeFusedDogCanvas/);
   assert.match(page, /new Image\(\)/);
-  assert.match(page, /isMobileRenderingEnvironment/);
-  assert.match(page, /pointer: coarse/);
+  assert.match(page, /const useThree = canUseWebGL\(\)/);
+  assert.doesNotMatch(page, /isMobileRenderingEnvironment|pointer: coarse/);
   assert.match(page, /lazy/);
   assert.match(page, /import\("@react-three\/fiber"\)/);
   assert.match(page, /Suspense/);
