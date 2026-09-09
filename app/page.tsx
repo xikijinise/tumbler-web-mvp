@@ -649,10 +649,11 @@ function drawFusedFallback(
   context.restore();
 }
 
-function JellyFallback({ motion, dragging }: { motion: JellyFallbackMotion; dragging: boolean }) {
+function JellyFallback({ motion, dragging, returning }: { motion: JellyFallbackMotion; dragging: boolean; returning: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionRef = useRef({ ...motion });
   const draggingRef = useRef(dragging);
+  const returningRef = useRef(returning);
   const releaseAtRef = useRef(0);
 
   useEffect(() => {
@@ -665,6 +666,10 @@ function JellyFallback({ motion, dragging }: { motion: JellyFallbackMotion; drag
     }
     draggingRef.current = dragging;
   }, [dragging]);
+
+  useEffect(() => {
+    returningRef.current = returning;
+  }, [returning]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -681,7 +686,10 @@ function JellyFallback({ motion, dragging }: { motion: JellyFallbackMotion; drag
       // hold the boundary position for a beat, then let the fallback return
       // smoothly instead of pulling away from the screen edge mid-drag.
       const releasedRecently = time - releaseAtRef.current < 220;
-      if (!draggingRef.current && !releasedRecently) {
+      if (returningRef.current) {
+        motionRef.current.x *= 0.9;
+        motionRef.current.y *= 0.9;
+      } else if (!draggingRef.current && !releasedRecently) {
         motionRef.current.x *= 0.982;
         motionRef.current.y *= 0.982;
       }
@@ -803,6 +811,7 @@ export default function Home() {
   const [fallbackMotion, setFallbackMotion] = useState<JellyFallbackMotion>({
     ...INITIAL_FALLBACK_MOTION,
   });
+  const [fallbackReturning, setFallbackReturning] = useState(false);
 
   const stability = useMemo(
     () =>
@@ -913,6 +922,7 @@ export default function Home() {
   const noteInput = useCallback(() => {
     lastInputAtRef.current = window.performance.now();
     autoReturnArmedRef.current = true;
+    setFallbackReturning(false);
   }, []);
 
   const recordInput = useCallback(() => {
@@ -945,6 +955,7 @@ export default function Home() {
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "reset" });
     setDisplay({ ...INITIAL_PHYSICS });
     setFallbackMotion({ ...INITIAL_FALLBACK_MOTION });
+    setFallbackReturning(false);
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("归位完成");
@@ -963,6 +974,7 @@ export default function Home() {
     autoReturnArmedRef.current = false;
     stopPointerRepeat();
     physicsCommandQueueRef.current.push({ id: actionIdRef.current++, type: "return" });
+    setFallbackReturning(true);
     comboRef.current = 0;
     setCombo(0);
     setLastImpact("自动归位");
@@ -1280,13 +1292,13 @@ export default function Home() {
         <div className="subject-zone" aria-hidden="true">
           <div className="three-stage" data-physics="react-three-rapier" data-x-position={display.x.toFixed(2)}>
             {webglStatus === "available" ? (
-              <Suspense fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} />}>
+              <Suspense fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} returning={fallbackReturning} />}>
                 <ThreeCanvas
                   dpr={[1, 2]}
                   camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
                   shadows
                   gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-                  fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} />}
+                  fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} returning={fallbackReturning} />}
                   onCreated={({ gl }) => {
                     gl.setClearColor(0x000000, 0);
                     gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -1302,7 +1314,7 @@ export default function Home() {
                 </ThreeCanvas>
               </Suspense>
             ) : (
-              <JellyFallback motion={fallbackMotion} dragging={isDragging} />
+              <JellyFallback motion={fallbackMotion} dragging={isDragging} returning={fallbackReturning} />
             )}
           </div>
           {effects.map((effect) => (
