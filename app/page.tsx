@@ -411,13 +411,16 @@ function drawFusedFallback(
 
   const stageRect = canvas.parentElement?.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
-  const horizontalInset = canvasRect.width * 0.1;
-  const verticalInset = canvasRect.height * 0.045;
+  // Bound the complete fallback canvas by the full-screen experiment board.
+  // The canvas is centered by CSS, so these are the actual available travel
+  // distances instead of a small hard-coded movement range.
+  const canvasWidth = canvas.clientWidth || canvasRect.width;
+  const canvasHeight = canvas.clientHeight || canvasRect.height;
   const maxX = stageRect
-    ? Math.max(0, (stageRect.width - canvasRect.width) / 2 + horizontalInset)
+    ? Math.max(0, (stageRect.width - canvasWidth) / 2)
     : window.innerWidth / 2;
   const maxY = stageRect
-    ? Math.max(0, (stageRect.height - canvasRect.height) / 2 + verticalInset)
+    ? Math.max(0, (stageRect.height - canvasHeight) / 2)
     : window.innerHeight / 2;
   canvas.style.transform = `translate3d(${clamp(motion.x, -maxX, maxX)}px, ${clamp(motion.y, -maxY, maxY)}px, 0) rotate(-2deg)`;
   context.save();
@@ -1172,7 +1175,7 @@ export default function Home() {
       setFallbackMotion((current) => ({
         angle: clamp(current.angle + dx * 0.22, -18, 18),
         x: clamp(current.x + dx * 0.9, -window.innerWidth, window.innerWidth),
-        y: clamp(current.y - dy * 0.72, -window.innerHeight, window.innerHeight),
+        y: clamp(current.y + dy * 0.72, -window.innerHeight, window.innerHeight),
         impact: clamp(current.impact + (Math.abs(dx) + Math.abs(dy)) / 80, 0, 1.3),
       }));
     }
