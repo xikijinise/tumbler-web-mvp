@@ -414,8 +414,10 @@ function drawFusedFallback(
   // Bound the complete fallback canvas by the full-screen experiment board.
   // The canvas is centered by CSS, so these are the actual available travel
   // distances instead of a small hard-coded movement range.
-  const canvasWidth = canvas.clientWidth || canvasRect.width;
-  const canvasHeight = canvas.clientHeight || canvasRect.height;
+  // getBoundingClientRect includes the canvas' fixed 2deg rotation, so the
+  // visible outer box—not the unrotated CSS size—stays inside the board.
+  const canvasWidth = canvasRect.width || canvas.clientWidth;
+  const canvasHeight = canvasRect.height || canvas.clientHeight;
   const maxX = stageRect
     ? Math.max(0, (stageRect.width - canvasWidth) / 2)
     : window.innerWidth / 2;
