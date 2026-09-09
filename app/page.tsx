@@ -647,13 +647,22 @@ function drawFusedFallback(
   context.restore();
 }
 
-function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
+function JellyFallback({ motion, dragging }: { motion: JellyFallbackMotion; dragging: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionRef = useRef({ ...motion });
+  const draggingRef = useRef(dragging);
+  const releaseAtRef = useRef(0);
 
   useEffect(() => {
     motionRef.current = { ...motion };
   }, [motion]);
+
+  useEffect(() => {
+    if (draggingRef.current && !dragging) {
+      releaseAtRef.current = window.performance.now();
+    }
+    draggingRef.current = dragging;
+  }, [dragging]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -666,8 +675,14 @@ function JellyFallback({ motion }: { motion: JellyFallbackMotion }) {
       if (!active) return;
       drawFusedFallback(canvas, dogCanvas, motionRef.current, time);
       motionRef.current.angle *= 0.965;
-      motionRef.current.x *= 0.982;
-      motionRef.current.y *= 0.982;
+      // Keep the whole jelly under the pointer while dragging. After release,
+      // hold the boundary position for a beat, then let the fallback return
+      // smoothly instead of pulling away from the screen edge mid-drag.
+      const releasedRecently = time - releaseAtRef.current < 220;
+      if (!draggingRef.current && !releasedRecently) {
+        motionRef.current.x *= 0.982;
+        motionRef.current.y *= 0.982;
+      }
       motionRef.current.impact *= 0.955;
       animationFrame = window.requestAnimationFrame(render);
     };
@@ -1259,13 +1274,13 @@ export default function Home() {
         <div className="subject-zone" aria-hidden="true">
           <div className="three-stage" data-physics="react-three-rapier" data-x-position={display.x.toFixed(2)}>
             {webglStatus === "available" ? (
-              <Suspense fallback={<JellyFallback motion={fallbackMotion} />}>
+              <Suspense fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} />}>
                 <ThreeCanvas
                   dpr={[1, 2]}
                   camera={{ position: [0, 0.35, 10.5], fov: 34, near: 0.1, far: 100 }}
                   shadows
                   gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-                  fallback={<JellyFallback motion={fallbackMotion} />}
+                  fallback={<JellyFallback motion={fallbackMotion} dragging={isDragging} />}
                   onCreated={({ gl }) => {
                     gl.setClearColor(0x000000, 0);
                     gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -1281,7 +1296,7 @@ export default function Home() {
                 </ThreeCanvas>
               </Suspense>
             ) : (
-              <JellyFallback motion={fallbackMotion} />
+              <JellyFallback motion={fallbackMotion} dragging={isDragging} />
             )}
           </div>
           {effects.map((effect) => (
