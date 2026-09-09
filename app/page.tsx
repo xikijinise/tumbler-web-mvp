@@ -409,7 +409,17 @@ function drawFusedFallback(
   const shapeBulge =
     Math.sin(time * 0.006 + 1.2) * 0.8 + motion.y * 0.032 + Math.sin(time * 0.032) * impact * 1.8;
 
-  canvas.style.transform = `translate3d(${clamp(motion.x, -116, 116)}px, ${clamp(motion.y, -74, 74)}px, 0) rotate(-2deg)`;
+  const stageRect = canvas.parentElement?.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const horizontalInset = canvasRect.width * 0.1;
+  const verticalInset = canvasRect.height * 0.045;
+  const maxX = stageRect
+    ? Math.max(0, (stageRect.width - canvasRect.width) / 2 + horizontalInset)
+    : window.innerWidth / 2;
+  const maxY = stageRect
+    ? Math.max(0, (stageRect.height - canvasRect.height) / 2 + verticalInset)
+    : window.innerHeight / 2;
+  canvas.style.transform = `translate3d(${clamp(motion.x, -maxX, maxX)}px, ${clamp(motion.y, -maxY, maxY)}px, 0) rotate(-2deg)`;
   context.save();
   context.translate(width / 2, height / 2);
   context.rotate(tilt);
@@ -1161,8 +1171,8 @@ export default function Home() {
       });
       setFallbackMotion((current) => ({
         angle: clamp(current.angle + dx * 0.22, -18, 18),
-        x: clamp(current.x + dx * 0.9, -116, 116),
-        y: clamp(current.y - dy * 0.72, -74, 74),
+        x: clamp(current.x + dx * 0.9, -window.innerWidth, window.innerWidth),
+        y: clamp(current.y - dy * 0.72, -window.innerHeight, window.innerHeight),
         impact: clamp(current.impact + (Math.abs(dx) + Math.abs(dy)) / 80, 0, 1.3),
       }));
     }
