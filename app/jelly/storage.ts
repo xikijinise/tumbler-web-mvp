@@ -38,11 +38,10 @@ export const IDLE_SAYINGS = [
 
 export const DEFAULT_SAYINGS = [...GENTLE_SAYINGS];
 
-const SUPABASE_PROJECT_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uipntxlrfctydhgxmxjd.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpcG50eGxyZmN0eWRoZ3hteGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0OTE3MzYsImV4cCI6MjEwMzA2NzczNn0.6c9b4kc37umD7ejz7m01reJLcNm0FBKMH18sitkCboY";
+const COUNTER_API_URL = (
+  process.env.NEXT_PUBLIC_COUNTER_API_URL ??
+  "https://tumbler-counter.stinergrunlien175.workers.dev"
+).replace(/\/+$/, "");
 
 const VALID_FLAVORS = new Set<FlavorId>(["strawberry", "peach", "muscat", "mango", "soda"]);
 const VALID_SOFTNESS = new Set<SoftnessId>(["pudding", "jelly", "gummy"]);
@@ -128,24 +127,27 @@ export function saveLocalCount(count: number) {
 
 function normalizeRemoteCount(value: unknown): number | null {
   if (Array.isArray(value)) return parseCountValue(value[0]);
-  if (value && typeof value === "object" && "get_input_count" in value) {
-    return parseCountValue((value as { get_input_count: unknown }).get_input_count);
+  if (value && typeof value === "object") {
+    if ("count" in value) {
+      return parseCountValue((value as { count: unknown }).count);
+    }
+    if ("get_input_count" in value) {
+      return parseCountValue((value as { get_input_count: unknown }).get_input_count);
+    }
   }
   return parseCountValue(value);
 }
 
-async function callCountRpc(name: "get_input_count" | "increment_input_count") {
-  if (!SUPABASE_PROJECT_URL || !SUPABASE_ANON_KEY) return null;
+async function callCounterApi(method: "GET" | "POST", path: string) {
+  if (!COUNTER_API_URL) return null;
   try {
-    const response = await fetch(`${SUPABASE_PROJECT_URL}/rest/v1/rpc/${name}`, {
-      method: "POST",
+    const response = await fetch(`${COUNTER_API_URL}${path}`, {
+      method,
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json",
         Accept: "application/json",
+        ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
       },
-      body: "{}",
+      ...(method === "POST" ? { body: "{}" } : {}),
       cache: "no-store",
     });
     if (!response.ok) return null;
@@ -156,9 +158,9 @@ async function callCountRpc(name: "get_input_count" | "increment_input_count") {
 }
 
 export function fetchGlobalInputCount() {
-  return callCountRpc("get_input_count");
+  return callCounterApi("GET", "/count");
 }
 
 export function incrementGlobalInputCount() {
-  return callCountRpc("increment_input_count");
+  return callCounterApi("POST", "/increment");
 }
