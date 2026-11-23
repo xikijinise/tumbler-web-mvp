@@ -44,6 +44,7 @@ type JellyShaderUniforms = {
   uSssColor: { value: THREE.Color };
   uRimColor: { value: THREE.Color };
   uEnergy: { value: number };
+  uDogMap: { value: THREE.Texture };
 };
 
 const JELLY_MIN_Y = -1.78;
@@ -312,6 +313,7 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
       uniform float uRippleAmp;
       uniform float uRipplePhase;
       varying float vJellyHeight;
+      varying vec3 vLocalPos;
 
       vec3 deformJellyPos(vec3 p) {
         float h = clamp((p.y + 1.78) / 3.74, 0.0, 1.0);
@@ -377,6 +379,7 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
       "#include <begin_vertex>",
       `vec3 transformed = deformedP;
       vJellyHeight = clamp((position.y + 1.78) / 3.74, 0.0, 1.0);
+      vLocalPos = position;
       `,
     );
 
@@ -386,8 +389,36 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
       uniform vec3 uSssColor;
       uniform vec3 uRimColor;
       uniform float uEnergy;
+      uniform sampler2D uDogMap;
       varying float vJellyHeight;
+      varying vec3 vLocalPos;
       `,
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <color_fragment>",
+      `#include <color_fragment>
+      float dogPrintMask = 0.0;
+      if (vLocalPos.z > 0.15) {
+        float angleX = atan(vLocalPos.x, vLocalPos.z);
+        float dogU = angleX / 1.16 + 0.5;
+        float dogV = (vLocalPos.y + 0.92) / 2.0;
+        if (dogU > 0.0 && dogU < 1.0 && dogV > 0.0 && dogV < 1.0) {
+          vec4 dogTexel = texture2D(uDogMap, vec2(dogU, dogV));
+          float frontFade = smoothstep(0.15, 0.55, vLocalPos.z);
+          dogPrintMask = dogTexel.a * frontFade;
+          diffuseColor.rgb = mix(diffuseColor.rgb, dogTexel.rgb, dogPrintMask * 0.95);
+        }
+      }
+      `,
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <transmission_fragment>",
+      THREE.ShaderChunk.transmission_fragment.replace(
+        "material.transmission = transmission;",
+        "material.transmission = transmission * (1.0 - dogPrintMask * 0.64);",
+      ),
     );
 
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -404,7 +435,7 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
     );
   };
 
-  material.customProgramCacheKey = () => "crystal-jelly-dome-v2";
+  material.customProgramCacheKey = () => "crystal-jelly-dome-dogprint-v3";
   return material;
 }
 
@@ -428,7 +459,6 @@ export function JellyScene({
   const physicsRef = useRef<JellyPhysicsState>(createInitialPhysicsState());
   const tumblerGroupRef = useRef<THREE.Group>(null);
   const jellyMeshRef = useRef<THREE.Mesh>(null);
-  const coreGroupRef = useRef<THREE.Group>(null);
   const shadowMeshRef = useRef<THREE.Mesh>(null);
   const bubblesGroupRef = useRef<THREE.Group>(null);
 
@@ -504,6 +534,7 @@ export function JellyScene({
       uSssColor: { value: new THREE.Color(flavor.sssColor) },
       uRimColor: { value: new THREE.Color(flavor.rimColor) },
       uEnergy: { value: 0 },
+      uDogMap: { value: dogTexture },
     };
     const material = createJellyMaterial(flavor, uniforms);
     return { uniforms, material };
@@ -520,7 +551,8 @@ export function JellyScene({
     material.attenuationDistance = flavor.attenuationDistance;
     uniforms.uSssColor.value.set(flavor.sssColor);
     uniforms.uRimColor.value.set(flavor.rimColor);
-  }, [flavor, jellyGeometry]);
+    uniforms.uDogMap.value = dogTexture;
+  }, [flavor, jellyGeometry, dogTexture]);
 
   useEffect(() => {
     const raycaster = new THREE.Raycaster();
@@ -705,24 +737,6 @@ export function JellyScene({
     uniforms.uRipplePhase.value = physics.ripplePhase;
     uniforms.uEnergy.value = physics.energy;
 
-    // Suspended pixel dog head floats directly inside the crystal jelly
-    if (coreGroupRef.current) {
-      const floatY = Math.sin(state.clock.elapsedTime * 2.2) * 0.04;
-      coreGroupRef.current.position.set(
-        physics.coreX,
-        -0.02 + physics.coreY + floatY,
-        0.04 + physics.coreZ,
-      );
-      const sy = THREE.MathUtils.clamp(1 - physics.squash * 0.45, 0.74, 1.26);
-      const sx = 1 / Math.sqrt(sy);
-      coreGroupRef.current.scale.set(sx, sy, 1);
-      coreGroupRef.current.rotation.set(
-        physics.wobbleZ * 0.3,
-        physics.twist * 0.5,
-        -physics.wobbleX * 0.32,
-      );
-    }
-
     if (bubblesGroupRef.current) {
       bubblesGroupRef.current.position.set(
         physics.coreX * 0.85,
@@ -806,23 +820,6 @@ export function JellyScene({
 
       {/* Pure Crystal Jelly Tumbler Assembly */}
       <group ref={tumblerGroupRef} position={[0, TUMBLER_REST_Y, 0]}>
-        {/* Suspended Pixel Dog Head ONLY (no white disc — pure crystal floating charm) */}
-        <group ref={coreGroupRef} position={[0, -0.02, 0.04]}>
-          {[-0.024, 0, 0.024].map((zOffset) => (
-            <mesh key={zOffset} position={[0, 0, zOffset]}>
-              <planeGeometry args={[1.66, 1.66]} />
-              <meshStandardMaterial
-                map={dogTexture}
-                transparent
-                alphaTest={0.25}
-                roughness={0.3}
-                metalness={0}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-          ))}
-        </group>
-
         {/* Glistening micro-bubbles trapped inside the fruit jelly */}
         <group ref={bubblesGroupRef}>
           {BUBBLE_SPECS.map((bubble, idx) => (
