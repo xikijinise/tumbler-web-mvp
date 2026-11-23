@@ -24,11 +24,19 @@ export type JellyCommand =
   | { id: number; type: "action"; action: JellyActionId; strength?: number }
   | { id: number; type: "reset" };
 
+export type JellyInteractionEvent = {
+  kind: "poke" | "fling" | "action";
+  intensity: "gentle" | "intense";
+  screenX?: number;
+  screenY?: number;
+};
+
 export type JellySceneProps = {
   flavor: JellyFlavor;
   softness: SoftnessPreset;
+  comboHeat: number;
   commandQueueRef: { current: JellyCommand[] };
-  onInteraction: (kind: "poke" | "fling" | "action", label: string) => void;
+  onInteraction: (event: JellyInteractionEvent) => void;
 };
 
 type JellyShaderUniforms = {
@@ -47,10 +55,24 @@ type JellyShaderUniforms = {
   uDogMap: { value: THREE.Texture };
 };
 
+type DropletParticle = {
+  active: boolean;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  life: number;
+  maxLife: number;
+  size: number;
+};
+
 const JELLY_MIN_Y = -1.78;
 const JELLY_HEIGHT = 3.74;
 const TUMBLER_REST_Y = -0.1;
 const PLATE_SURFACE_Y = -1.89;
+const DROPLET_COUNT = 16;
 
 function createCleanDogTexture(sourceTexture: THREE.Texture) {
   const image = sourceTexture.image as HTMLImageElement;
@@ -87,6 +109,45 @@ function createCleanDogTexture(sourceTexture: THREE.Texture) {
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.needsUpdate = true;
   return texture;
+}
+
+/** Delicate underglaze typography printed around the porcelain dessert plate rim */
+function createPlateRimTexture(accentHex: string) {
+  const width = 1024;
+  const height = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    // Subtle hairline glaze ring along the upper plate rim (v ~ 0.72..0.82 -> canvas y ~ 45..72)
+    ctx.strokeStyle = accentHex;
+    ctx.globalAlpha = 0.22;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 44);
+    ctx.lineTo(width, 44);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.42;
+    ctx.fillStyle = accentHex;
+    ctx.font = '600 18px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textBaseline = "middle";
+    const phrase = "TOMORROW · 明天就好了 · JELLY DOG · 等等就好了 · ";
+    const repeats = 3;
+    const step = width / repeats;
+    for (let i = 0; i < repeats; i += 1) {
+      ctx.fillText(phrase, i * step + 12, 66);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  return tex;
 }
 
 function createShadowTexture() {
@@ -175,13 +236,9 @@ function createStudioEnvironment(gl: THREE.WebGLRenderer) {
     envScene.add(mesh);
   };
 
-  // Bright overhead softbox for wet glossy jelly crown highlight
   addPanel("#ffffff", 3.2, [0, 7, 2.2], [Math.PI / 2, 0, 0], [8.5, 5.5, 1]);
-  // Left studio window strip for juicy vertical specular reflection
   addPanel("#fffaf7", 3.8, [-6.2, 2.4, 4.5], [0, Math.PI / 3, 0], [3.4, 8.5, 1]);
-  // Right pastel rim strip
   addPanel("#edf6ff", 2.6, [6.6, 1.8, -1.2], [0, -Math.PI / 2.2, 0], [2.8, 7.5, 1]);
-  // Warm porcelain plate bounce from below
   addPanel("#fff2f5", 1.8, [0, -5.2, 3], [-Math.PI / 2, 0, 0], [10, 10, 1]);
 
   const rt = pmrem.fromScene(envScene, 0.04);
@@ -189,10 +246,6 @@ function createStudioEnvironment(gl: THREE.WebGLRenderer) {
   return rt;
 }
 
-/**
- * Plump molded crystal fruit-jelly dome with a rounded roly-poly base
- * and subtle 8-lobe pudding fluting so specular light dances on every jiggle.
- */
 function createJellyDomeGeometry() {
   const controlPoints = [
     new THREE.Vector2(0.01, -1.78),
@@ -213,7 +266,6 @@ function createJellyDomeGeometry() {
   const sampled = curve.getPoints(56);
   const geometry = new THREE.LatheGeometry(sampled, 80);
 
-  // Add subtle, organic 8-petal molded jelly fluting around the belly
   const pos = geometry.attributes.position;
   for (let i = 0; i < pos.count; i += 1) {
     const x = pos.getX(i);
@@ -233,7 +285,6 @@ function createJellyDomeGeometry() {
   return geometry;
 }
 
-/** Shallow glossy porcelain dessert saucer beneath the jelly */
 function createPlateGeometry() {
   const pts = [
     new THREE.Vector2(0.01, -0.16),
@@ -424,12 +475,11 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <dithering_fragment>",
       `
-      // Juicy Fresnel rim + luminous crystal fruit-jelly subsurface glow
       vec3 viewDirFrag = normalize(vViewPosition);
       float fresnel = pow(1.0 - max(dot(normalize(normal), viewDirFrag), 0.0), 2.5);
       float sssMask = smoothstep(0.06, 0.94, vJellyHeight);
-      gl_FragColor.rgb += uSssColor * (0.16 + uEnergy * 0.1) * sssMask * (0.35 + fresnel * 0.95);
-      gl_FragColor.rgb += uRimColor * fresnel * 0.34;
+      gl_FragColor.rgb += uSssColor * (0.16 + uEnergy * 0.13) * sssMask * (0.35 + fresnel * 0.95);
+      gl_FragColor.rgb += uRimColor * fresnel * (0.34 + uEnergy * 0.1);
       #include <dithering_fragment>
       `,
     );
@@ -449,9 +499,25 @@ const BUBBLE_SPECS: Array<{ pos: [number, number, number]; radius: number }> = [
   { pos: [0.18, -1.06, 0.62], radius: 0.05 },
 ];
 
+function createDropletPool(): DropletParticle[] {
+  return Array.from({ length: DROPLET_COUNT }, () => ({
+    active: false,
+    x: 0,
+    y: -10,
+    z: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    life: 0,
+    maxLife: 0.8,
+    size: 0.08,
+  }));
+}
+
 export function JellyScene({
   flavor,
   softness,
+  comboHeat,
   commandQueueRef,
   onInteraction,
 }: JellySceneProps) {
@@ -461,16 +527,47 @@ export function JellyScene({
   const jellyMeshRef = useRef<THREE.Mesh>(null);
   const shadowMeshRef = useRef<THREE.Mesh>(null);
   const bubblesGroupRef = useRef<THREE.Group>(null);
+  const dropletsMeshRef = useRef<THREE.InstancedMesh>(null);
+  const dropletsRef = useRef<DropletParticle[]>(createDropletPool());
+  const dropletDummy = useMemo(() => new THREE.Object3D(), []);
 
   const softnessRef = useRef(softness);
   useEffect(() => {
     softnessRef.current = softness;
   }, [softness]);
 
+  const comboHeatRef = useRef(comboHeat);
+  useEffect(() => {
+    comboHeatRef.current = comboHeat;
+  }, [comboHeat]);
+
   const onInteractionRef = useRef(onInteraction);
   useEffect(() => {
     onInteractionRef.current = onInteraction;
   }, [onInteraction]);
+
+  const spawnDroplets = (originX: number, originY: number, originZ: number, count: number) => {
+    const pool = dropletsRef.current;
+    let spawned = 0;
+    for (let i = 0; i < pool.length && spawned < count; i += 1) {
+      const p = pool[i];
+      if (!p.active) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.6 + Math.random() * 2.8;
+        p.active = true;
+        p.x = originX + (Math.random() - 0.5) * 0.45;
+        p.y = originY + (Math.random() - 0.5) * 0.35;
+        p.z = originZ + (Math.random() - 0.5) * 0.35;
+        p.vx = Math.cos(angle) * speed;
+        p.vy = 2.6 + Math.random() * 3.4;
+        p.vz = Math.sin(angle) * speed * 0.7;
+        p.life = 0;
+        p.maxLife = 0.65 + Math.random() * 0.45;
+        p.size = 0.065 + Math.random() * 0.075;
+        spawned += 1;
+      }
+    }
+  };
 
   const dragRef = useRef<{
     active: boolean;
@@ -504,6 +601,9 @@ export function JellyScene({
   const rawDogTexture = useLoader(THREE.TextureLoader, "./custom-character.png");
   const dogTexture = useMemo(() => createCleanDogTexture(rawDogTexture), [rawDogTexture]);
   useEffect(() => () => dogTexture.dispose(), [dogTexture]);
+
+  const plateRimTexture = useMemo(() => createPlateRimTexture(flavor.accent), [flavor.accent]);
+  useEffect(() => () => plateRimTexture.dispose(), [plateRimTexture]);
 
   const shadowTexture = useMemo(() => createShadowTexture(), []);
   useEffect(() => () => shadowTexture.dispose(), [shadowTexture]);
@@ -608,7 +708,14 @@ export function JellyScene({
           THREE.MathUtils.clamp(0.45 + speed * 0.08, 0.4, 1.5),
           softnessRef.current,
         );
-        onInteractionRef.current("fling", "拉扯回弹");
+        spawnDroplets(physics.x, TUMBLER_REST_Y + physics.y + 0.6, physics.z + 0.6, 6);
+        const rect = gl.domElement.getBoundingClientRect();
+        onInteractionRef.current({
+          kind: "fling",
+          intensity: "intense",
+          screenX: ((event.clientX - rect.left) / rect.width) * 100,
+          screenY: ((event.clientY - rect.top) / rect.height) * 100,
+        });
       } else {
         physics.grabActive = false;
         physics.grabTarget = [0, 0, 0];
@@ -645,7 +752,18 @@ export function JellyScene({
     );
     startGrabJelly(physics, [localPoint.x, localPoint.y, localPoint.z]);
     jellyAudio.playPoke(0.92, softnessRef.current);
-    onInteractionRef.current("poke", "戳了一下");
+
+    if (comboHeatRef.current > 0.35) {
+      spawnDroplets(event.point.x, event.point.y, event.point.z, 4);
+    }
+
+    const rect = gl.domElement.getBoundingClientRect();
+    onInteractionRef.current({
+      kind: "poke",
+      intensity: comboHeatRef.current > 0.55 ? "intense" : "gentle",
+      screenX: ((event.clientX - rect.left) / rect.width) * 100,
+      screenY: ((event.clientY - rect.top) / rect.height) * 100,
+    });
 
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
@@ -667,11 +785,18 @@ export function JellyScene({
     const side = event.point.x < physicsRef.current.x ? "right" : "left";
     applyJellyAction(physicsRef.current, side, 0.78, softnessRef.current);
     jellyAudio.playPoke(0.8, softnessRef.current);
-    onInteractionRef.current("poke", side === "left" ? "轻推向左" : "轻推向右");
+    const rect = gl.domElement.getBoundingClientRect();
+    onInteractionRef.current({
+      kind: "poke",
+      intensity: "gentle",
+      screenX: ((event.clientX - rect.left) / rect.width) * 100,
+      screenY: ((event.clientY - rect.top) / rect.height) * 100,
+    });
   };
 
   useFrame((state, delta) => {
     const physics = physicsRef.current;
+    const heat = comboHeatRef.current;
 
     while (commandQueueRef.current.length > 0) {
       const cmd = commandQueueRef.current.shift();
@@ -682,6 +807,9 @@ export function JellyScene({
         const strength = cmd.strength ?? 1;
         applyJellyAction(physics, cmd.action, strength, softnessRef.current);
         jellyAudio.playPoke(strength, softnessRef.current);
+        if (cmd.action === "super" || cmd.action === "stomp" || heat > 0.4) {
+          spawnDroplets(physics.x, TUMBLER_REST_Y + physics.y + 0.5, physics.z + 0.5, 6);
+        }
       }
     }
 
@@ -695,6 +823,9 @@ export function JellyScene({
       {
         onBounce: (intensity) => {
           jellyAudio.playBounce(intensity, softnessRef.current);
+          if (intensity > 0.5) {
+            spawnDroplets(physics.x, PLATE_SURFACE_Y + 0.3, physics.z + 0.4, 4);
+          }
         },
       },
     );
@@ -735,14 +866,53 @@ export function JellyScene({
     );
     uniforms.uRippleAmp.value = physics.rippleAmp;
     uniforms.uRipplePhase.value = physics.ripplePhase;
-    uniforms.uEnergy.value = physics.energy;
+    uniforms.uEnergy.value = Math.min(2.2, physics.energy + heat * 0.9);
 
     if (bubblesGroupRef.current) {
+      const jitter = heat > 0.05 ? Math.sin(state.clock.elapsedTime * 22) * 0.03 * heat : 0;
       bubblesGroupRef.current.position.set(
-        physics.coreX * 0.85,
+        physics.coreX * 0.85 + jitter,
         physics.coreY * 0.85,
         physics.coreZ * 0.85,
       );
+    }
+
+    // Update 3D jelly splash droplets
+    if (dropletsMeshRef.current) {
+      const dt = Math.min(delta, 0.04);
+      const pool = dropletsRef.current;
+      for (let i = 0; i < pool.length; i += 1) {
+        const p = pool[i];
+        if (p.active) {
+          p.life += dt;
+          if (p.life >= p.maxLife) {
+            p.active = false;
+            dropletDummy.position.set(0, -20, 0);
+            dropletDummy.scale.setScalar(0.0001);
+          } else {
+            p.vy -= 14.5 * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.z += p.vz * dt;
+            if (p.y < PLATE_SURFACE_Y + 0.06) {
+              p.y = PLATE_SURFACE_Y + 0.06;
+              p.vy = Math.abs(p.vy) * 0.35;
+              p.vx *= 0.72;
+              p.vz *= 0.72;
+            }
+            const progress = p.life / p.maxLife;
+            const scale = p.size * Math.sin(Math.PI * (1 - progress * 0.85));
+            dropletDummy.position.set(p.x, p.y, p.z);
+            dropletDummy.scale.setScalar(Math.max(0.001, scale));
+          }
+        } else {
+          dropletDummy.position.set(0, -20, 0);
+          dropletDummy.scale.setScalar(0.0001);
+        }
+        dropletDummy.updateMatrix();
+        dropletsMeshRef.current.setMatrixAt(i, dropletDummy.matrix);
+      }
+      dropletsMeshRef.current.instanceMatrix.needsUpdate = true;
     }
 
     if (shadowMeshRef.current) {
@@ -771,13 +941,11 @@ export function JellyScene({
       <directionalLight position={[5.5, 4.0, -4.0]} intensity={1.45} color="#eef6ff" />
       <pointLight position={[0, -1.2, 4.5]} intensity={1.25} distance={14} color={flavor.sssColor} />
 
-      {/* Luminous studio backdrop for crystal-clear transmission */}
       <mesh position={[0, 0.5, -5.8]} onPointerDown={handleBackdropPointerDown}>
         <planeGeometry args={[28, 18]} />
         <meshBasicMaterial map={backdropTexture} toneMapped={false} />
       </mesh>
 
-      {/* Pastel dessert tabletop */}
       <mesh
         position={[0, PLATE_SURFACE_Y - 0.12, -0.4]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -787,13 +955,15 @@ export function JellyScene({
         <meshStandardMaterial color={flavor.floorColor} roughness={0.85} metalness={0} />
       </mesh>
 
-      {/* Glossy white porcelain dessert plate */}
+      {/* Glossy white porcelain dessert plate with delicate underglaze rim text */}
       <mesh
         geometry={plateGeometry}
         position={[0, PLATE_SURFACE_Y + 0.04, 0]}
+        rotation={[0, -0.35, 0]}
         onPointerDown={handleBackdropPointerDown}
       >
         <meshPhysicalMaterial
+          map={plateRimTexture}
           color="#ffffff"
           roughness={0.14}
           metalness={0.02}
@@ -802,7 +972,6 @@ export function JellyScene({
         />
       </mesh>
 
-      {/* Colored translucent jelly caustic shadow on the plate */}
       <mesh
         ref={shadowMeshRef}
         position={[0, PLATE_SURFACE_Y + 0.015, 0]}
@@ -818,9 +987,22 @@ export function JellyScene({
         />
       </mesh>
 
+      {/* 3D Crystal Jelly Splash Droplets */}
+      <instancedMesh ref={dropletsMeshRef} args={[undefined, undefined, DROPLET_COUNT]}>
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshPhysicalMaterial
+          color={flavor.topColor}
+          roughness={0.06}
+          metalness={0}
+          clearcoat={1}
+          transmission={0.65}
+          thickness={0.4}
+          ior={1.4}
+        />
+      </instancedMesh>
+
       {/* Pure Crystal Jelly Tumbler Assembly */}
       <group ref={tumblerGroupRef} position={[0, TUMBLER_REST_Y, 0]}>
-        {/* Glistening micro-bubbles trapped inside the fruit jelly */}
         <group ref={bubblesGroupRef}>
           {BUBBLE_SPECS.map((bubble, idx) => (
             <mesh key={idx} position={bubble.pos}>
@@ -836,7 +1018,6 @@ export function JellyScene({
           ))}
         </group>
 
-        {/* Outer Crystal-Clear Molded Fruit Jelly Shell */}
         <mesh
           ref={jellyMeshRef}
           geometry={jellyGeometry}

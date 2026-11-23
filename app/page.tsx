@@ -11,10 +11,13 @@ import {
   type FlavorId,
   type SoftnessId,
 } from "./jelly/flavors";
-import type { JellyCommand } from "./jelly/JellyScene";
+import type { JellyCommand, JellyInteractionEvent } from "./jelly/JellyScene";
 import type { JellyActionId } from "./jelly/physics";
 import {
   DEFAULT_SAYINGS,
+  GENTLE_SAYINGS,
+  IDLE_SAYINGS,
+  INTENSE_SAYINGS,
   fetchGlobalInputCount,
   incrementGlobalInputCount,
   loadLocalCount,
@@ -41,6 +44,16 @@ type SpeechBubbleState = {
   x: number;
   y: number;
   side: "left" | "right";
+  tilt: number;
+  intense: boolean;
+};
+
+type OnomatopoeiaPop = {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
+  intense: boolean;
 };
 
 type ShortcutAction = {
@@ -60,12 +73,17 @@ const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: "super", key: "Space", label: "超载抖动" },
 ];
 
+const GENTLE_SOUNDS = ["啵叽", "duang~", "噗啾", "Q弹"];
+const INTENSE_SOUNDS = ["DUANG!!", "啵叽!!", "弹飞!", "Q弹爆表!"];
+
 const INITIAL_SPEECH: SpeechBubbleState = {
   id: 0,
-  text: DEFAULT_SAYINGS[0],
+  text: GENTLE_SAYINGS[0],
   x: 72,
-  y: 36,
+  y: 34,
   side: "right",
+  tilt: 2,
+  intense: false,
 };
 
 function canUseWebGL() {
@@ -74,24 +92,28 @@ function canUseWebGL() {
   return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
 }
 
-function makeSpeechBubble(id: number, text: string): SpeechBubbleState {
+function pickRandom<T>(list: T[]): T {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function makeSpeechBubble(id: number, text: string, intense: boolean): SpeechBubbleState {
   const side = Math.random() < 0.5 ? "left" : "right";
   return {
     id,
     text,
     side,
-    x: side === "left" ? 20 + Math.random() * 10 : 80 - Math.random() * 10,
-    y: 24 + Math.random() * 28,
+    x: side === "left" ? 18 + Math.random() * 10 : 82 - Math.random() * 10,
+    y: 23 + Math.random() * 24,
+    tilt: side === "left" ? -2.2 : 2.2,
+    intense,
   };
 }
 
-function StageFallback({ flavorName }: { flavorName: string }) {
+function StageLoader({ label }: { label: string }) {
   return (
-    <div className="stage-fallback" role="img" aria-label={`${flavorName}果冻不倒翁加载中`}>
-      <div className="stage-fallback-blob">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="./custom-character.png" alt="狗头夹心" className="stage-fallback-dog" />
-      </div>
+    <div className="stage-loader" role="status" aria-label={label}>
+      <div className="stage-loader-ring" />
+      <span>{label}</span>
     </div>
   );
 }
@@ -100,7 +122,11 @@ export default function Home() {
   const commandQueueRef = useRef<JellyCommand[]>([]);
   const cmdIdRef = useRef(1);
   const speechIdRef = useRef(1);
+  const popIdRef = useRef(1);
   const totalCountRef = useRef(0);
+  const comboRef = useRef(0);
+  const lastHitAtRef = useRef(0);
+  const hasInteractedRef = useRef(false);
   const settingsReadyRef = useRef(false);
 
   const [webglStatus, setWebglStatus] = useState<"checking" | "available" | "unavailable">(
@@ -108,21 +134,24 @@ export default function Home() {
   );
   const [settings, setSettings] = useState<TumblerSettings>({
     sayings: [...DEFAULT_SAYINGS],
+    hasCustomSayings: false,
     flavor: "strawberry",
     softness: "jelly",
     soundEnabled: true,
   });
   const [totalCount, setTotalCount] = useState(0);
+  const [combo, setCombo] = useState(0);
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sayingsDraft, setSayingsDraft] = useState(DEFAULT_SAYINGS.join("\n"));
   const [speech, setSpeech] = useState<SpeechBubbleState>(INITIAL_SPEECH);
   const [speechVisible, setSpeechVisible] = useState(false);
+  const [pops, setPops] = useState<OnomatopoeiaPop[]>([]);
 
   const activeFlavor = useMemo(() => getFlavor(settings.flavor), [settings.flavor]);
   const activeSoftness = useMemo(() => getSoftness(settings.softness), [settings.softness]);
+  const comboHeat = useMemo(() => Math.min(1, Math.max(0, (combo - 2) / 14)), [combo]);
 
-  // Hydrate persisted settings, WebGL support, and Supabase global counter
   useEffect(() => {
     let active = true;
     const initTimer = window.setTimeout(() => {
@@ -159,6 +188,16 @@ export default function Home() {
     saveStoredSettings(settings);
   }, [settings]);
 
+  // Cool down combo when user pauses
+  useEffect(() => {
+    if (combo === 0) return;
+    const timer = window.setTimeout(() => {
+      comboRef.current = 0;
+      setCombo(0);
+    }, 1700);
+    return () => window.clearTimeout(timer);
+  }, [combo]);
+
   const recordInput = useCallback(() => {
     const next = Math.min(totalCountRef.current + 1, Number.MAX_SAFE_INTEGER);
     totalCountRef.current = next;
@@ -175,26 +214,77 @@ export default function Home() {
   }, []);
 
   const popSaying = useCallback(
-    (customText?: string) => {
-      const pool = settings.sayings.length > 0 ? settings.sayings : DEFAULT_SAYINGS;
-      const text = customText ?? pool[Math.floor(Math.random() * pool.length)];
-      setSpeech(makeSpeechBubble(speechIdRef.current++, text));
+    (mode: "gentle" | "intense" | "idle" | "custom", customText?: string) => {
+      let text = customText;
+      if (!text) {
+        if (mode === "idle") {
+          text = pickRandom(IDLE_SAYINGS);
+        } else if (settings.hasCustomSayings && settings.sayings.length > 0) {
+          text = pickRandom(settings.sayings);
+        } else {
+          text = pickRandom(mode === "intense" ? INTENSE_SAYINGS : GENTLE_SAYINGS);
+        }
+      }
+      setSpeech(makeSpeechBubble(speechIdRef.current++, text, mode === "intense"));
       setSpeechVisible(true);
     },
-    [settings.sayings],
+    [settings.hasCustomSayings, settings.sayings],
   );
 
-  // Auto-hide speech bubble gently after idle
+  const spawnPop = useCallback((text: string, x: number, y: number, intense: boolean) => {
+    const id = popIdRef.current++;
+    const clampedX = Math.min(82, Math.max(18, x));
+    const clampedY = Math.min(72, Math.max(22, y));
+    setPops((curr) => [...curr.slice(-4), { id, text, x: clampedX, y: clampedY, intense }]);
+    window.setTimeout(() => {
+      setPops((curr) => curr.filter((item) => item.id !== id));
+    }, 680);
+  }, []);
+
+  // Auto-hide speech bubble gently
   useEffect(() => {
     if (!speechVisible) return;
-    const timer = window.setTimeout(() => setSpeechVisible(false), 3400);
+    const timer = window.setTimeout(() => setSpeechVisible(false), 3200);
     return () => window.clearTimeout(timer);
   }, [speech.id, speechVisible]);
 
-  const handleInteraction = useCallback(() => {
-    recordInput();
-    popSaying();
-  }, [popSaying, recordInput]);
+  // Cheeky idle taunt if user leaves the jelly alone after playing
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!hasInteractedRef.current || autoEnabled || settingsOpen) return;
+      const idleMs = performance.now() - lastHitAtRef.current;
+      if (idleMs > 9500 && idleMs < 11000) {
+        popSaying("idle");
+      }
+    }, 1400);
+    return () => window.clearInterval(timer);
+  }, [autoEnabled, popSaying, settingsOpen]);
+
+  const registerFeedback = useCallback(
+    (event: JellyInteractionEvent) => {
+      hasInteractedRef.current = true;
+      const now = performance.now();
+      const isChain = now - lastHitAtRef.current < 1400;
+      const nextCombo = isChain ? comboRef.current + 1 : 1;
+      comboRef.current = nextCombo;
+      lastHitAtRef.current = now;
+      setCombo(nextCombo);
+
+      recordInput();
+
+      const isIntense = event.intensity === "intense" || nextCombo >= 6;
+      popSaying(isIntense ? "intense" : "gentle");
+
+      const popX = event.screenX ?? 44 + Math.random() * 12;
+      const popY = event.screenY ?? 36 + Math.random() * 10;
+      const popLabel =
+        nextCombo >= 5 && nextCombo % 5 === 0
+          ? `×${nextCombo} DUANG!`
+          : pickRandom(isIntense ? INTENSE_SOUNDS : GENTLE_SOUNDS);
+      spawnPop(popLabel, popX, popY, isIntense);
+    },
+    [popSaying, recordInput, spawnPop],
+  );
 
   const triggerAction = useCallback(
     (action: JellyActionId, strength = 1) => {
@@ -204,10 +294,12 @@ export default function Home() {
         action,
         strength,
       });
-      recordInput();
-      popSaying();
+      registerFeedback({
+        kind: "action",
+        intensity: action === "super" || action === "stomp" || action === "backhand" ? "intense" : "gentle",
+      });
     },
-    [popSaying, recordInput],
+    [registerFeedback],
   );
 
   const handleReset = useCallback(() => {
@@ -215,10 +307,11 @@ export default function Home() {
       id: cmdIdRef.current++,
       type: "reset",
     });
-    popSaying("回到平衡点");
+    comboRef.current = 0;
+    setCombo(0);
+    popSaying("custom", "重新摆好啦~");
   }, [popSaying]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -250,7 +343,6 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleReset, triggerAction]);
 
-  // Auto-poke mode
   useEffect(() => {
     if (!autoEnabled) return;
     let timer = 0;
@@ -287,9 +379,20 @@ export default function Home() {
 
   const applySayings = () => {
     const sayings = normalizeSayings(sayingsDraft.split(/\r?\n/));
-    setSettings((curr) => ({ ...curr, sayings }));
+    setSettings((curr) => ({ ...curr, sayings, hasCustomSayings: true }));
     setSayingsDraft(sayings.join("\n"));
-    popSaying(sayings[0]);
+    popSaying("custom", sayings[0]);
+    setSettingsOpen(false);
+  };
+
+  const resetDefaultSayings = () => {
+    setSettings((curr) => ({
+      ...curr,
+      sayings: [...DEFAULT_SAYINGS],
+      hasCustomSayings: false,
+    }));
+    setSayingsDraft(DEFAULT_SAYINGS.join("\n"));
+    popSaying("gentle");
     setSettingsOpen(false);
   };
 
@@ -309,7 +412,7 @@ export default function Home() {
         aria-label="果冻不倒翁互动舞台：点击戳它，按住拉扯果冻并松手弹回"
       >
         {webglStatus === "available" ? (
-          <Suspense fallback={<StageFallback flavorName={activeFlavor.name} />}>
+          <Suspense fallback={<StageLoader label="果冻正在凝固..." />}>
             <ThreeCanvas
               dpr={[1, 2]}
               camera={{ position: [0, 0.45, 9.6], fov: 35, near: 0.1, far: 100 }}
@@ -323,13 +426,16 @@ export default function Home() {
               <ThreeJellyScene
                 flavor={activeFlavor}
                 softness={activeSoftness}
+                comboHeat={comboHeat}
                 commandQueueRef={commandQueueRef}
-                onInteraction={handleInteraction}
+                onInteraction={registerFeedback}
               />
             </ThreeCanvas>
           </Suspense>
         ) : (
-          <StageFallback flavorName={activeFlavor.name} />
+          <StageLoader
+            label={webglStatus === "checking" ? "果冻正在凝固..." : "当前浏览器不支持 3D WebGL"}
+          />
         )}
 
         {/* Top Bar: Minimal brand & global counter */}
@@ -340,10 +446,16 @@ export default function Home() {
           </div>
 
           <div className="top-actions">
-            <div className="counter-pill" aria-live="polite" title="全站累计互动次数">
+            {combo >= 2 && (
+              <div className="combo-pill" aria-live="polite">
+                连击 ×{combo}
+              </div>
+            )}
+            <div className="counter-pill" aria-live="polite" title="全网累计催促次数">
               <span className="counter-dot" />
-              <span>全站已戳</span>
+              <span>全网已催促</span>
               <strong>{totalCount.toLocaleString("zh-CN")}</strong>
+              <span className="counter-unit">次</span>
             </div>
             <button
               type="button"
@@ -358,20 +470,38 @@ export default function Home() {
               type="button"
               className="icon-pill"
               onClick={handleReset}
-              aria-label="重新归位"
-              title="归位 (R)"
+              aria-label="重新摆好"
+              title="摆好 (R)"
             >
               ↺
             </button>
           </div>
         </header>
 
-        {/* Playful Speech Bubble */}
+        {/* Comic Jelly Onomatopoeia Popups */}
+        {pops.map((pop) => (
+          <span
+            key={pop.id}
+            className={`jelly-pop ${pop.intense ? "is-intense" : ""}`}
+            style={{ left: `${pop.x}%`, top: `${pop.y}%` }}
+            aria-hidden="true"
+          >
+            {pop.text}
+          </span>
+        ))}
+
+        {/* Frosted-Sugar Jelly Speech Bubble */}
         {speechVisible && (
           <div
             key={speech.id}
-            className={`speech-bubble speech-${speech.side}`}
-            style={{ left: `${speech.x}%`, top: `${speech.y}%` }}
+            className={`speech-bubble speech-${speech.side} ${speech.intense ? "is-intense" : ""}`}
+            style={
+              {
+                left: `${speech.x}%`,
+                top: `${speech.y}%`,
+                "--bubble-tilt": `${speech.tilt}deg`,
+              } as React.CSSProperties
+            }
             aria-live="polite"
           >
             “{speech.text}”
@@ -421,7 +551,7 @@ export default function Home() {
               aria-pressed={autoEnabled}
             >
               <span className="auto-dot" />
-              自动
+              自动代戳
             </button>
             <button
               type="button"
@@ -430,7 +560,7 @@ export default function Home() {
               aria-expanded={settingsOpen}
               aria-controls="jelly-settings-popover"
             >
-              设置
+              口头禅
             </button>
           </div>
         </nav>
@@ -441,10 +571,10 @@ export default function Home() {
             id="jelly-settings-popover"
             className="settings-popover"
             role="dialog"
-            aria-label="台词与快捷键设置"
+            aria-label="口头禅与快捷键设置"
           >
             <div className="popover-head">
-              <strong>台词与快捷键</strong>
+              <strong>自定义口头禅 &amp; 招式</strong>
               <button
                 type="button"
                 className="popover-close"
@@ -456,7 +586,7 @@ export default function Home() {
             </div>
 
             <label className="popover-field">
-              <span>自定义互动台词（每行一句，最多 10 句）</span>
+              <span>每行一句（最多 10 句），保存后戳它会随机冒出来</span>
               <textarea
                 rows={4}
                 value={sayingsDraft}
@@ -465,9 +595,14 @@ export default function Home() {
               />
             </label>
 
-            <button type="button" className="popover-save" onClick={applySayings}>
-              保存台词
-            </button>
+            <div className="popover-actions">
+              <button type="button" className="popover-save" onClick={applySayings}>
+                保存口头禅
+              </button>
+              <button type="button" className="popover-reset" onClick={resetDefaultSayings}>
+                恢复默认分档台词
+              </button>
+            </div>
 
             <div className="shortcut-section">
               <span>键盘快捷招式</span>

@@ -2,21 +2,41 @@ import type { FlavorId, SoftnessId } from "./flavors";
 
 export type TumblerSettings = {
   sayings: string[];
+  hasCustomSayings: boolean;
   flavor: FlavorId;
   softness: SoftnessId;
   soundEnabled: boolean;
 };
 
-export const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v4";
+export const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v5";
 export const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
-export const DEFAULT_SAYINGS = [
-  "duang~",
-  "别戳了，要化了",
-  "Q弹！",
+
+export const GENTLE_SAYINGS = [
   "等等就好了",
   "明天就好了",
-  "好痒啊",
+  "再等等",
+  "在看了在看了",
+  "马上好",
+  "duang~",
 ];
+
+export const INTENSE_SAYINGS = [
+  "已经让人处理了！！",
+  "别晃了要化了！",
+  "明天一定！！",
+  "duang 晕了！",
+  "手下留情啊！",
+  "这周内搞定！",
+];
+
+export const IDLE_SAYINGS = [
+  "这就没力气了？",
+  "不戳了？",
+  "那我先眯会儿",
+  "明天见咯~",
+];
+
+export const DEFAULT_SAYINGS = [...GENTLE_SAYINGS];
 
 const SUPABASE_PROJECT_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uipntxlrfctydhgxmxjd.supabase.co";
@@ -40,6 +60,7 @@ export function normalizeSayings(value: unknown): string[] {
 export function loadStoredSettings(): TumblerSettings {
   const fallback: TumblerSettings = {
     sayings: [...DEFAULT_SAYINGS],
+    hasCustomSayings: false,
     flavor: "strawberry",
     softness: "jelly",
     soundEnabled: true,
@@ -47,11 +68,14 @@ export function loadStoredSettings(): TumblerSettings {
   if (typeof window === "undefined") return fallback;
 
   try {
-    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(SETTINGS_STORAGE_KEY) ??
+      window.localStorage.getItem("tumbler-web-mvp-settings-v4");
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<TumblerSettings>;
     return {
       sayings: normalizeSayings(parsed.sayings),
+      hasCustomSayings: Boolean(parsed.hasCustomSayings),
       flavor:
         parsed.flavor && VALID_FLAVORS.has(parsed.flavor) ? parsed.flavor : fallback.flavor,
       softness:

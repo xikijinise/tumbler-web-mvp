@@ -31,12 +31,12 @@ test("server-renders the overhauled 3D jelly tumbler", async () => {
   const html = await response.text();
   assert.match(html, /<title>果冻不倒翁 · 3D 软体互动<\/title>/i);
   assert.match(html, /果冻不倒翁/);
-  assert.match(html, /全站已戳/);
+  assert.match(html, /全网已催促/);
   assert.match(html, /软糯布丁/);
   assert.match(html, /Q弹果冻/);
   assert.match(html, /紧实软糖/);
-  assert.match(html, /自动/);
-  assert.match(html, /设置/);
+  assert.match(html, /自动代戳/);
+  assert.match(html, /口头禅/);
   assert.match(html, /role="application"/);
 });
 
