@@ -124,6 +124,8 @@ export default function Home() {
   const speechIdRef = useRef(1);
   const popIdRef = useRef(1);
   const totalCountRef = useRef(0);
+  const remoteSyncedRef = useRef(false);
+  const highestRemoteRef = useRef(0);
   const comboRef = useRef(0);
   const lastHitAtRef = useRef(0);
   const hasInteractedRef = useRef(false);
@@ -140,6 +142,7 @@ export default function Home() {
     soundEnabled: true,
   });
   const [totalCount, setTotalCount] = useState(0);
+  const [counterSynced, setCounterSynced] = useState(false);
   const [combo, setCombo] = useState(0);
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -169,10 +172,12 @@ export default function Home() {
 
       void fetchGlobalInputCount().then((remoteCount) => {
         if (!active || remoteCount === null) return;
-        const merged = Math.max(totalCountRef.current, remoteCount);
-        totalCountRef.current = merged;
-        setTotalCount(merged);
-        saveLocalCount(merged);
+        remoteSyncedRef.current = true;
+        highestRemoteRef.current = Math.max(highestRemoteRef.current, remoteCount);
+        totalCountRef.current = highestRemoteRef.current;
+        setCounterSynced(true);
+        setTotalCount(highestRemoteRef.current);
+        saveLocalCount(highestRemoteRef.current);
       });
     }, 0);
 
@@ -199,17 +204,19 @@ export default function Home() {
   }, [combo]);
 
   const recordInput = useCallback(() => {
-    const next = Math.min(totalCountRef.current + 1, Number.MAX_SAFE_INTEGER);
-    totalCountRef.current = next;
-    setTotalCount(next);
-    saveLocalCount(next);
+    const optimistic = Math.min(totalCountRef.current + 1, Number.MAX_SAFE_INTEGER);
+    totalCountRef.current = optimistic;
+    setTotalCount(optimistic);
+    saveLocalCount(optimistic);
 
     void incrementGlobalInputCount().then((remoteCount) => {
       if (remoteCount === null) return;
-      const merged = Math.max(totalCountRef.current, remoteCount);
-      totalCountRef.current = merged;
-      setTotalCount((curr) => Math.max(curr, remoteCount));
-      saveLocalCount(merged);
+      remoteSyncedRef.current = true;
+      highestRemoteRef.current = Math.max(highestRemoteRef.current, remoteCount);
+      totalCountRef.current = highestRemoteRef.current;
+      setCounterSynced(true);
+      setTotalCount(highestRemoteRef.current);
+      saveLocalCount(highestRemoteRef.current);
     });
   }, []);
 
@@ -270,7 +277,10 @@ export default function Home() {
       lastHitAtRef.current = now;
       setCombo(nextCombo);
 
-      recordInput();
+      // Fling is the release of a drag whose initial pointerdown already counted once
+      if (event.kind !== "fling") {
+        recordInput();
+      }
 
       const isIntense = event.intensity === "intense" || nextCombo >= 6;
       popSaying(isIntense ? "intense" : "gentle");
@@ -451,7 +461,11 @@ export default function Home() {
                 连击 ×{combo}
               </div>
             )}
-            <div className="counter-pill" aria-live="polite" title="全网累计催促次数">
+            <div
+              className="counter-pill"
+              aria-live="polite"
+              title={counterSynced ? "已实时同步到 Cloudflare D1" : "正在连接云端计数（当前显示本地缓存）"}
+            >
               <span className="counter-dot" />
               <span>全网已催促</span>
               <strong>{totalCount.toLocaleString("zh-CN")}</strong>

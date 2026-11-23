@@ -9,7 +9,7 @@ export type TumblerSettings = {
 };
 
 export const SETTINGS_STORAGE_KEY = "tumbler-web-mvp-settings-v5";
-export const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-history-count-v1";
+export const HISTORY_COUNT_STORAGE_KEY = "tumbler-web-mvp-d1-count-v2";
 
 export const GENTLE_SAYINGS = [
   "等等就好了",
@@ -143,11 +143,6 @@ async function callCounterApi(method: "GET" | "POST", path: string) {
   try {
     const response = await fetch(`${COUNTER_API_URL}${path}`, {
       method,
-      headers: {
-        Accept: "application/json",
-        ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
-      },
-      ...(method === "POST" ? { body: "{}" } : {}),
       cache: "no-store",
     });
     if (!response.ok) return null;
