@@ -58,7 +58,7 @@ test("uses custom soft-body spring physics, GLSL shader, and suspended pixel dog
   // GPU Shader + transmission + internal dog core
   assert.match(scene, /onBeforeCompile/);
   assert.match(scene, /deformJellyPos/);
-  assert.match(scene, /transmission:\s*0\.84/);
+  assert.match(scene, /transmission:\s*0\.88/);
   assert.match(scene, /transparent:\s*false/);
   assert.match(scene, /custom-character\.png/);
   assert.match(scene, /createStudioEnvironment/);

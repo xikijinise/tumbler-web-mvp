@@ -46,8 +46,10 @@ type JellyShaderUniforms = {
   uEnergy: { value: number };
 };
 
-const TUMBLER_REST_Y = -0.15;
-const FLOOR_Y = -2.35;
+const JELLY_MIN_Y = -1.78;
+const JELLY_HEIGHT = 3.74;
+const TUMBLER_REST_Y = -0.1;
+const PLATE_SURFACE_Y = -1.89;
 
 function createCleanDogTexture(sourceTexture: THREE.Texture) {
   const image = sourceTexture.image as HTMLImageElement;
@@ -96,14 +98,14 @@ function createShadowTexture() {
     const grad = ctx.createRadialGradient(
       size / 2,
       size / 2,
-      size * 0.05,
+      size * 0.04,
       size / 2,
       size / 2,
       size * 0.48,
     );
-    grad.addColorStop(0, "rgba(255,255,255,0.62)");
-    grad.addColorStop(0.45, "rgba(255,255,255,0.28)");
-    grad.addColorStop(0.8, "rgba(255,255,255,0.06)");
+    grad.addColorStop(0, "rgba(255,255,255,0.68)");
+    grad.addColorStop(0.42, "rgba(255,255,255,0.34)");
+    grad.addColorStop(0.78, "rgba(255,255,255,0.08)");
     grad.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, size, size);
@@ -129,14 +131,14 @@ function createBackdropTexture(topHex: string, bottomHex: string) {
 
     const glow = ctx.createRadialGradient(
       width * 0.5,
-      height * 0.44,
-      width * 0.04,
+      height * 0.43,
+      width * 0.03,
       width * 0.5,
       height * 0.48,
       width * 0.58,
     );
-    glow.addColorStop(0, "rgba(255, 255, 255, 0.72)");
-    glow.addColorStop(0.55, "rgba(255, 255, 255, 0.16)");
+    glow.addColorStop(0, "rgba(255, 255, 255, 0.78)");
+    glow.addColorStop(0.55, "rgba(255, 255, 255, 0.18)");
     glow.addColorStop(1, "rgba(255, 255, 255, 0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
@@ -152,7 +154,7 @@ function createStudioEnvironment(gl: THREE.WebGLRenderer) {
   pmrem.compileEquirectangularShader();
 
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color("#f6eef1");
+  envScene.background = new THREE.Color("#f9f2f4");
 
   const addPanel = (
     color: string,
@@ -172,65 +174,101 @@ function createStudioEnvironment(gl: THREE.WebGLRenderer) {
     envScene.add(mesh);
   };
 
-  // Overhead softbox for signature glossy jelly crown highlight
-  addPanel("#ffffff", 2.8, [0, 7, 2], [Math.PI / 2, 0, 0], [8, 5, 1]);
-  // Left window key light strip (creates the curved vertical wet reflection!)
-  addPanel("#fff9f5", 3.4, [-6.5, 2.2, 4.2], [0, Math.PI / 3, 0], [3.2, 8.5, 1]);
-  // Right cool-warm rim strip
-  addPanel("#eef6ff", 2.4, [6.8, 1.8, -1.5], [0, -Math.PI / 2.2, 0], [2.6, 7.5, 1]);
-  // Warm lower bounce for luminous jelly belly
-  addPanel("#ffe9ee", 1.5, [0, -5.5, 3], [-Math.PI / 2, 0, 0], [10, 10, 1]);
+  // Bright overhead softbox for wet glossy jelly crown highlight
+  addPanel("#ffffff", 3.2, [0, 7, 2.2], [Math.PI / 2, 0, 0], [8.5, 5.5, 1]);
+  // Left studio window strip for juicy vertical specular reflection
+  addPanel("#fffaf7", 3.8, [-6.2, 2.4, 4.5], [0, Math.PI / 3, 0], [3.4, 8.5, 1]);
+  // Right pastel rim strip
+  addPanel("#edf6ff", 2.6, [6.6, 1.8, -1.2], [0, -Math.PI / 2.2, 0], [2.8, 7.5, 1]);
+  // Warm porcelain plate bounce from below
+  addPanel("#fff2f5", 1.8, [0, -5.2, 3], [-Math.PI / 2, 0, 0], [10, 10, 1]);
 
   const rt = pmrem.fromScene(envScene, 0.04);
   pmrem.dispose();
   return rt;
 }
 
-function createJellyGeometry() {
+/**
+ * Plump molded crystal fruit-jelly dome with a rounded roly-poly base
+ * and subtle 8-lobe pudding fluting so specular light dances on every jiggle.
+ */
+function createJellyDomeGeometry() {
   const controlPoints = [
-    new THREE.Vector2(0.01, -2.18),
-    new THREE.Vector2(0.42, -2.16),
-    new THREE.Vector2(0.86, -2.02),
-    new THREE.Vector2(1.2, -1.72),
-    new THREE.Vector2(1.42, -1.28),
-    new THREE.Vector2(1.52, -0.68),
-    new THREE.Vector2(1.49, -0.02),
-    new THREE.Vector2(1.37, 0.58),
-    new THREE.Vector2(1.16, 1.12),
-    new THREE.Vector2(1.04, 1.38),
-    // Soft jelly cap lip
-    new THREE.Vector2(1.22, 1.52),
-    new THREE.Vector2(1.24, 1.72),
-    new THREE.Vector2(1.16, 2.04),
-    new THREE.Vector2(0.94, 2.34),
-    new THREE.Vector2(0.56, 2.52),
-    new THREE.Vector2(0.01, 2.58),
+    new THREE.Vector2(0.01, -1.78),
+    new THREE.Vector2(0.55, -1.75),
+    new THREE.Vector2(1.12, -1.58),
+    new THREE.Vector2(1.52, -1.24),
+    new THREE.Vector2(1.74, -0.72),
+    new THREE.Vector2(1.76, -0.14),
+    new THREE.Vector2(1.64, 0.44),
+    new THREE.Vector2(1.42, 0.98),
+    new THREE.Vector2(1.14, 1.44),
+    new THREE.Vector2(0.76, 1.78),
+    new THREE.Vector2(0.36, 1.93),
+    new THREE.Vector2(0.01, 1.96),
   ];
 
   const curve = new THREE.SplineCurve(controlPoints);
-  const sampled = curve.getPoints(58);
-  const geometry = new THREE.LatheGeometry(sampled, 72);
+  const sampled = curve.getPoints(56);
+  const geometry = new THREE.LatheGeometry(sampled, 80);
+
+  // Add subtle, organic 8-petal molded jelly fluting around the belly
+  const pos = geometry.attributes.position;
+  for (let i = 0; i < pos.count; i += 1) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const radius = Math.hypot(x, z);
+    if (radius > 0.08) {
+      const theta = Math.atan2(z, x);
+      const h = THREE.MathUtils.clamp((y - JELLY_MIN_Y) / JELLY_HEIGHT, 0, 1);
+      const fluteEnvelope = Math.sin(Math.PI * h) * Math.sin(Math.PI * h);
+      const flute = 1 + 0.038 * Math.cos(theta * 8) * fluteEnvelope;
+      pos.setXYZ(i, x * flute, y, z * flute);
+    }
+  }
+  pos.needsUpdate = true;
   geometry.computeVertexNormals();
   return geometry;
+}
+
+/** Shallow glossy porcelain dessert saucer beneath the jelly */
+function createPlateGeometry() {
+  const pts = [
+    new THREE.Vector2(0.01, -0.16),
+    new THREE.Vector2(1.9, -0.16),
+    new THREE.Vector2(2.35, -0.1),
+    new THREE.Vector2(2.82, 0.08),
+    new THREE.Vector2(2.96, 0.14),
+    new THREE.Vector2(2.92, 0.17),
+    new THREE.Vector2(2.74, 0.12),
+    new THREE.Vector2(2.2, -0.02),
+    new THREE.Vector2(1.5, -0.05),
+    new THREE.Vector2(0.01, -0.05),
+  ];
+  const geo = new THREE.LatheGeometry(pts, 72);
+  geo.computeVertexNormals();
+  return geo;
 }
 
 function applyFlavorVertexColors(geometry: THREE.BufferGeometry, flavor: JellyFlavor) {
   const positions = geometry.attributes.position;
   const colors = new Float32Array(positions.count * 3);
-  const cap = new THREE.Color(flavor.capColor);
-  const body = new THREE.Color(flavor.bodyColor);
-  const base = new THREE.Color(flavor.baseColor);
+  const top = new THREE.Color(flavor.topColor);
+  const mid = new THREE.Color(flavor.midColor);
+  const bottom = new THREE.Color(flavor.bottomColor);
   const tmp = new THREE.Color();
 
   for (let i = 0; i < positions.count; i += 1) {
     const y = positions.getY(i);
-    // Smooth transitions between base, belly, and glossy cap
-    const baseBlend = THREE.MathUtils.smoothstep(-y, 1.18, 1.78);
-    const capBlend = THREE.MathUtils.smoothstep(y, 1.32, 1.62);
-
-    tmp.copy(body);
-    tmp.lerp(base, baseBlend * 0.92);
-    tmp.lerp(cap, capBlend);
+    const h = THREE.MathUtils.clamp((y - JELLY_MIN_Y) / JELLY_HEIGHT, 0, 1);
+    if (h < 0.48) {
+      const t = THREE.MathUtils.smoothstep(h, 0.0, 0.48);
+      tmp.copy(bottom).lerp(mid, t);
+    } else {
+      const t = THREE.MathUtils.smoothstep(h, 0.48, 1.0);
+      tmp.copy(mid).lerp(top, t);
+    }
 
     colors[i * 3] = tmp.r;
     colors[i * 3 + 1] = tmp.g;
@@ -244,16 +282,16 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
   const material = new THREE.MeshPhysicalMaterial({
     color: "#ffffff",
     vertexColors: true,
-    roughness: 0.055,
+    roughness: 0.045,
     metalness: 0,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.04,
-    transmission: 0.84,
-    thickness: 2.3,
-    ior: 1.4,
+    clearcoatRoughness: 0.035,
+    transmission: 0.88,
+    thickness: 2.5,
+    ior: 1.42,
     attenuationColor: new THREE.Color(flavor.attenuationColor),
     attenuationDistance: flavor.attenuationDistance,
-    envMapIntensity: 1.25,
+    envMapIntensity: 1.35,
     transparent: false,
     side: THREE.FrontSide,
   });
@@ -276,40 +314,40 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
       varying float vJellyHeight;
 
       vec3 deformJellyPos(vec3 p) {
-        float h = clamp((p.y + 2.18) / 4.76, 0.0, 1.0);
+        float h = clamp((p.y + 1.78) / 3.74, 0.0, 1.0);
         vec3 q = p;
 
-        // 1. Volume-preserving squash & stretch anchored at bottom (-2.18)
-        float sy = clamp(1.0 - uSquash, 0.62, 1.42);
+        // 1. Volume-preserving squash & stretch anchored at bottom (-1.78)
+        float sy = clamp(1.0 - uSquash, 0.56, 1.48);
         float sxz = 1.0 / sqrt(sy);
-        q.y = -2.18 + (q.y + 2.18) * sy;
+        q.y = -1.78 + (q.y + 1.78) * sy;
         q.xz *= sxz;
 
-        // 2. Height-weighted top inertia wobble (secondary spring lag)
-        float wobbleEnv = h * h;
-        q.x += uWobble.x * wobbleEnv * 1.18;
-        q.z += uWobble.y * wobbleEnv * 1.18;
+        // 2. Two-mode gelatin wobble (top lag + belly S-wave)
+        float wobbleEnv = h * h + sin(h * 6.28318) * 0.14;
+        q.x += uWobble.x * wobbleEnv * 1.25;
+        q.z += uWobble.y * wobbleEnv * 1.25;
 
-        // Subtle living idle breath
-        float breath = sin(uTime * 2.2 + p.y * 1.4) * 0.011 * sin(h * 3.14159);
+        // Subtle living gelatin jiggle
+        float breath = sin(uTime * 2.4 + p.y * 1.8) * 0.014 * sin(h * 3.14159);
         q.xz *= (1.0 + breath);
 
         // 3. Torsional twist around vertical axis
-        float angle = uTwist * h * 0.62;
+        float angle = uTwist * h * 0.68;
         float ca = cos(angle);
         float sa = sin(angle);
         q.xz = mat2(ca, -sa, sa, ca) * q.xz;
 
-        // 4. Local Gaussian poke / grab deformation
+        // 4. Local Gaussian poke / stretchy grab lobe
         float dGrab = distance(p, uGrabPoint);
-        float grabInfluence = exp(-dGrab * dGrab * 0.72) * smoothstep(0.0, 0.16, h);
+        float grabInfluence = exp(-dGrab * dGrab * 0.65) * smoothstep(0.0, 0.14, h);
         q += uGrabDisp * grabInfluence;
 
-        // 5. Radial surface impact ripple
+        // 5. Concentric surface impact ripple
         if (uRippleAmp > 0.001) {
           float dRip = distance(p, uRippleOrigin);
-          float rip = sin(dRip * 5.4 - uRipplePhase) * exp(-dRip * 0.62) * uRippleAmp * 0.085;
-          vec3 radialDir = normalize(vec3(p.x, p.y * 0.35, p.z) + vec3(0.0001));
+          float rip = sin(dRip * 5.6 - uRipplePhase) * exp(-dRip * 0.55) * uRippleAmp * 0.1;
+          vec3 radialDir = normalize(vec3(p.x, p.y * 0.4, p.z) + vec3(0.0001));
           q += radialDir * rip;
         }
 
@@ -338,7 +376,7 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
     shader.vertexShader = shader.vertexShader.replace(
       "#include <begin_vertex>",
       `vec3 transformed = deformedP;
-      vJellyHeight = clamp((position.y + 2.18) / 4.76, 0.0, 1.0);
+      vJellyHeight = clamp((position.y + 1.78) / 3.74, 0.0, 1.0);
       `,
     );
 
@@ -355,28 +393,29 @@ function createJellyMaterial(flavor: JellyFlavor, uniforms: JellyShaderUniforms)
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <dithering_fragment>",
       `
-      // Juicy Fresnel rim + translucent subsurface scattering glow
+      // Juicy Fresnel rim + luminous crystal fruit-jelly subsurface glow
       vec3 viewDirFrag = normalize(vViewPosition);
-      float fresnel = pow(1.0 - max(dot(normalize(normal), viewDirFrag), 0.0), 2.8);
-      float sssMask = smoothstep(0.1, 0.9, vJellyHeight);
-      gl_FragColor.rgb += uSssColor * (0.14 + uEnergy * 0.09) * sssMask * (0.4 + fresnel * 0.9);
-      gl_FragColor.rgb += uRimColor * fresnel * 0.28;
+      float fresnel = pow(1.0 - max(dot(normalize(normal), viewDirFrag), 0.0), 2.5);
+      float sssMask = smoothstep(0.06, 0.94, vJellyHeight);
+      gl_FragColor.rgb += uSssColor * (0.16 + uEnergy * 0.1) * sssMask * (0.35 + fresnel * 0.95);
+      gl_FragColor.rgb += uRimColor * fresnel * 0.34;
       #include <dithering_fragment>
       `,
     );
   };
 
-  material.customProgramCacheKey = () => "jelly-tumbler-shader-v1";
+  material.customProgramCacheKey = () => "crystal-jelly-dome-v2";
   return material;
 }
 
-const BUBBLE_SPECS: Array<{ pos: [number, number, number]; radius: number; phase: number }> = [
-  { pos: [-0.68, 0.72, 0.52], radius: 0.085, phase: 0.4 },
-  { pos: [0.76, 0.44, 0.42], radius: 0.065, phase: 1.7 },
-  { pos: [-0.52, -0.92, 0.64], radius: 0.055, phase: 2.5 },
-  { pos: [0.62, -0.78, -0.45], radius: 0.075, phase: 3.1 },
-  { pos: [0.28, 1.08, 0.56], radius: 0.05, phase: 4.3 },
-  { pos: [-0.82, -0.18, -0.35], radius: 0.06, phase: 5.2 },
+const BUBBLE_SPECS: Array<{ pos: [number, number, number]; radius: number }> = [
+  { pos: [-0.88, 0.56, 0.54], radius: 0.09 },
+  { pos: [0.92, 0.32, 0.42], radius: 0.07 },
+  { pos: [-0.66, -0.76, 0.72], radius: 0.06 },
+  { pos: [0.74, -0.68, -0.46], radius: 0.08 },
+  { pos: [0.34, 1.02, 0.52], radius: 0.055 },
+  { pos: [-0.96, -0.14, -0.38], radius: 0.065 },
+  { pos: [0.18, -1.06, 0.62], radius: 0.05 },
 ];
 
 export function JellyScene({
@@ -403,7 +442,6 @@ export function JellyScene({
     onInteractionRef.current = onInteraction;
   }, [onInteraction]);
 
-  // Drag tracking in world space
   const dragRef = useRef<{
     active: boolean;
     moved: boolean;
@@ -430,7 +468,6 @@ export function JellyScene({
     dragPlane: new THREE.Plane(new THREE.Vector3(0, 0, 1), 0),
   });
 
-  // Procedural studio PMREM environment for crisp wet jelly reflections
   const envTarget = useMemo(() => createStudioEnvironment(gl), [gl]);
   useEffect(() => () => envTarget.dispose(), [envTarget]);
 
@@ -447,8 +484,11 @@ export function JellyScene({
   );
   useEffect(() => () => backdropTexture.dispose(), [backdropTexture]);
 
-  const jellyGeometry = useMemo(() => createJellyGeometry(), []);
+  const jellyGeometry = useMemo(() => createJellyDomeGeometry(), []);
   useEffect(() => () => jellyGeometry.dispose(), [jellyGeometry]);
+
+  const plateGeometry = useMemo(() => createPlateGeometry(), []);
+  useEffect(() => () => plateGeometry.dispose(), [plateGeometry]);
 
   const jellyResources = useMemo(() => {
     const uniforms: JellyShaderUniforms = {
@@ -456,9 +496,9 @@ export function JellyScene({
       uSquash: { value: 0 },
       uWobble: { value: new THREE.Vector2(0, 0) },
       uTwist: { value: 0 },
-      uGrabPoint: { value: new THREE.Vector3(0, 0.2, 1.3) },
+      uGrabPoint: { value: new THREE.Vector3(0, 0.1, 1.4) },
       uGrabDisp: { value: new THREE.Vector3(0, 0, 0) },
-      uRippleOrigin: { value: new THREE.Vector3(0, 0.2, 1.3) },
+      uRippleOrigin: { value: new THREE.Vector3(0, 0.1, 1.4) },
       uRippleAmp: { value: 0 },
       uRipplePhase: { value: 0 },
       uSssColor: { value: new THREE.Color(flavor.sssColor) },
@@ -473,7 +513,6 @@ export function JellyScene({
   const jellyResourcesRef = useRef(jellyResources);
   useEffect(() => () => jellyResourcesRef.current.material.dispose(), []);
 
-  // Update vertex colors & shader tint cleanly when flavor changes
   useEffect(() => {
     applyFlavorVertexColors(jellyGeometry, flavor);
     const { material, uniforms } = jellyResourcesRef.current;
@@ -483,7 +522,6 @@ export function JellyScene({
     uniforms.uRimColor.value.set(flavor.rimColor);
   }, [flavor, jellyGeometry]);
 
-  // Global pointer move / up listeners while grabbing the jelly so dragging stays locked even off-mesh
   useEffect(() => {
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
@@ -534,7 +572,10 @@ export function JellyScene({
       if (drag.moved) {
         const speed = Math.hypot(drag.velX, drag.velY);
         endGrabJelly(physics, drag.velX, drag.velY, softnessRef.current);
-        jellyAudio.playRelease(THREE.MathUtils.clamp(0.45 + speed * 0.08, 0.4, 1.5), softnessRef.current);
+        jellyAudio.playRelease(
+          THREE.MathUtils.clamp(0.45 + speed * 0.08, 0.4, 1.5),
+          softnessRef.current,
+        );
         onInteractionRef.current("fling", "拉扯回弹");
       } else {
         physics.grabActive = false;
@@ -563,19 +604,17 @@ export function JellyScene({
       ? event.face.normal.clone().normalize()
       : localPoint.clone().normalize();
 
-    // Immediate tactile poke dimple + sound
     pokeJelly(
       physics,
       [localPoint.x, localPoint.y, localPoint.z],
       [localNormal.x, localNormal.y, localNormal.z],
-      0.92,
+      0.95,
       softnessRef.current,
     );
     startGrabJelly(physics, [localPoint.x, localPoint.y, localPoint.z]);
-    jellyAudio.playPoke(0.9, softnessRef.current);
+    jellyAudio.playPoke(0.92, softnessRef.current);
     onInteractionRef.current("poke", "戳了一下");
 
-    // Set up camera-facing drag plane passing through hit point
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
     const drag = dragRef.current;
@@ -593,17 +632,15 @@ export function JellyScene({
   };
 
   const handleBackdropPointerDown = (event: ThreeEvent<PointerEvent>) => {
-    // Clicking empty space nudges the jelly playfully toward the opposite side
     const side = event.point.x < physicsRef.current.x ? "right" : "left";
-    applyJellyAction(physicsRef.current, side, 0.72, softnessRef.current);
-    jellyAudio.playPoke(0.75, softnessRef.current);
+    applyJellyAction(physicsRef.current, side, 0.78, softnessRef.current);
+    jellyAudio.playPoke(0.8, softnessRef.current);
     onInteractionRef.current("poke", side === "left" ? "轻推向左" : "轻推向右");
   };
 
   useFrame((state, delta) => {
     const physics = physicsRef.current;
 
-    // Drain external commands (keyboard actions, auto-poke, reset)
     while (commandQueueRef.current.length > 0) {
       const cmd = commandQueueRef.current.shift();
       if (!cmd) break;
@@ -616,9 +653,8 @@ export function JellyScene({
       }
     }
 
-    // Compute dynamic viewport-aware stage bounds so the tumbler stays comfortably on screen
     const maxX = Math.max(1.8, viewport.width * 0.36);
-    const maxY = Math.max(2.6, viewport.height * 0.34);
+    const maxY = Math.max(2.5, viewport.height * 0.34);
     stepJellyPhysics(
       physics,
       delta,
@@ -631,7 +667,6 @@ export function JellyScene({
       },
     );
 
-    // Apply transform to tumbler root group
     if (tumblerGroupRef.current) {
       tumblerGroupRef.current.position.set(
         physics.x,
@@ -646,7 +681,6 @@ export function JellyScene({
       );
     }
 
-    // Sync GPU jelly shader uniforms
     const { uniforms } = jellyResourcesRef.current;
     uniforms.uTime.value = state.clock.elapsedTime;
     uniforms.uSquash.value = physics.squash;
@@ -671,25 +705,24 @@ export function JellyScene({
     uniforms.uRipplePhase.value = physics.ripplePhase;
     uniforms.uEnergy.value = physics.energy;
 
-    // Suspended internal pixel dog head floats with subtle secondary lag
+    // Suspended pixel dog head floats directly inside the crystal jelly
     if (coreGroupRef.current) {
-      const floatY = Math.sin(state.clock.elapsedTime * 2.1) * 0.035;
+      const floatY = Math.sin(state.clock.elapsedTime * 2.2) * 0.04;
       coreGroupRef.current.position.set(
         physics.coreX,
-        -0.12 + physics.coreY + floatY,
-        0.06 + physics.coreZ,
+        -0.02 + physics.coreY + floatY,
+        0.04 + physics.coreZ,
       );
-      const sy = THREE.MathUtils.clamp(1 - physics.squash * 0.42, 0.78, 1.22);
+      const sy = THREE.MathUtils.clamp(1 - physics.squash * 0.45, 0.74, 1.26);
       const sx = 1 / Math.sqrt(sy);
       coreGroupRef.current.scale.set(sx, sy, 1);
       coreGroupRef.current.rotation.set(
-        physics.wobbleZ * 0.25,
-        physics.twist * 0.45,
-        -physics.wobbleX * 0.28,
+        physics.wobbleZ * 0.3,
+        physics.twist * 0.5,
+        -physics.wobbleX * 0.32,
       );
     }
 
-    // Subtle internal micro-bubbles drift gently inside the jelly
     if (bubblesGroupRef.current) {
       bubblesGroupRef.current.position.set(
         physics.coreX * 0.85,
@@ -698,20 +731,19 @@ export function JellyScene({
       );
     }
 
-    // Dynamic colored translucent contact shadow on the studio floor
     if (shadowMeshRef.current) {
       const lift = Math.max(0, physics.y);
-      const spread = 1 + lift * 0.16 + Math.max(0, physics.squash) * 0.35;
-      const leanOffsetX = -Math.sin(physics.tiltZ) * 0.55;
-      const leanOffsetZ = Math.sin(physics.tiltX) * 0.55;
+      const spread = 1 + lift * 0.16 + Math.max(0, physics.squash) * 0.42;
+      const leanOffsetX = -Math.sin(physics.tiltZ) * 0.5;
+      const leanOffsetZ = Math.sin(physics.tiltX) * 0.5;
       shadowMeshRef.current.position.set(
         physics.x + leanOffsetX,
-        FLOOR_Y + 0.01,
+        PLATE_SURFACE_Y + 0.015,
         physics.z + leanOffsetZ,
       );
-      shadowMeshRef.current.scale.set(3.2 * spread, 2.75 * spread, 1);
+      shadowMeshRef.current.scale.set(3.5 * spread, 3.0 * spread, 1);
       const mat = shadowMeshRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = THREE.MathUtils.clamp(0.75 - lift * 0.14, 0.15, 0.8);
+      mat.opacity = THREE.MathUtils.clamp(0.78 - lift * 0.15, 0.14, 0.82);
     }
   });
 
@@ -720,21 +752,20 @@ export function JellyScene({
       <color attach="background" args={[flavor.backdropBottom]} />
       <primitive object={envTarget.texture} attach="environment" />
 
-      {/* Soft studio lighting for crystal-clear refraction and juicy rim highlights */}
-      <ambientLight intensity={0.75} color="#fff9fb" />
-      <directionalLight position={[-4.5, 7.5, 6.5]} intensity={2.1} color="#ffffff" />
-      <directionalLight position={[5.5, 4.0, -4.0]} intensity={1.35} color="#e8f3ff" />
-      <pointLight position={[0, -1.5, 4.5]} intensity={1.1} distance={14} color={flavor.sssColor} />
+      <ambientLight intensity={0.82} color="#fff9fb" />
+      <directionalLight position={[-4.5, 7.5, 6.5]} intensity={2.2} color="#ffffff" />
+      <directionalLight position={[5.5, 4.0, -4.0]} intensity={1.45} color="#eef6ff" />
+      <pointLight position={[0, -1.2, 4.5]} intensity={1.25} distance={14} color={flavor.sssColor} />
 
-      {/* Seamless luminous studio backdrop for clean transmission refraction */}
-      <mesh position={[0, 0.5, -5.5]} onPointerDown={handleBackdropPointerDown}>
+      {/* Luminous studio backdrop for crystal-clear transmission */}
+      <mesh position={[0, 0.5, -5.8]} onPointerDown={handleBackdropPointerDown}>
         <planeGeometry args={[28, 18]} />
         <meshBasicMaterial map={backdropTexture} toneMapped={false} />
       </mesh>
 
-      {/* Subtle studio tabletop plane */}
+      {/* Pastel dessert tabletop */}
       <mesh
-        position={[0, FLOOR_Y, -0.4]}
+        position={[0, PLATE_SURFACE_Y - 0.12, -0.4]}
         rotation={[-Math.PI / 2, 0, 0]}
         onPointerDown={handleBackdropPointerDown}
       >
@@ -742,52 +773,57 @@ export function JellyScene({
         <meshStandardMaterial color={flavor.floorColor} roughness={0.85} metalness={0} />
       </mesh>
 
-      {/* Colored translucent jelly caustic shadow */}
-      <mesh ref={shadowMeshRef} position={[0, FLOOR_Y + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Glossy white porcelain dessert plate */}
+      <mesh
+        geometry={plateGeometry}
+        position={[0, PLATE_SURFACE_Y + 0.04, 0]}
+        onPointerDown={handleBackdropPointerDown}
+      >
+        <meshPhysicalMaterial
+          color="#ffffff"
+          roughness={0.14}
+          metalness={0.02}
+          clearcoat={0.85}
+          clearcoatRoughness={0.1}
+        />
+      </mesh>
+
+      {/* Colored translucent jelly caustic shadow on the plate */}
+      <mesh
+        ref={shadowMeshRef}
+        position={[0, PLATE_SURFACE_Y + 0.015, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial
           map={shadowTexture}
           color={flavor.shadowColor}
           transparent
-          opacity={0.72}
+          opacity={0.75}
           depthWrite={false}
         />
       </mesh>
 
-      {/* Main Jelly Tumbler Assembly */}
+      {/* Pure Crystal Jelly Tumbler Assembly */}
       <group ref={tumblerGroupRef} position={[0, TUMBLER_REST_Y, 0]}>
-        {/* Internal Suspended Pixel Dog Charm (opaque -> optically refracted through the jelly!) */}
-        <group ref={coreGroupRef} position={[0, -0.12, 0.06]}>
-          {/* Soft cream medallion backing so the dog looks 3D from every angle */}
-          <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.78, 0.78, 0.14, 36]} />
-            <meshStandardMaterial color="#fff7eb" roughness={0.35} metalness={0.05} />
-          </mesh>
-          {/* Front pixel-dog face */}
-          <mesh position={[0, 0, 0.076]}>
-            <planeGeometry args={[1.48, 1.48]} />
-            <meshStandardMaterial
-              map={dogTexture}
-              transparent
-              alphaTest={0.25}
-              roughness={0.32}
-              metalness={0}
-            />
-          </mesh>
-          {/* Back pixel-dog face (mirrored) */}
-          <mesh position={[0, 0, -0.076]} rotation={[0, Math.PI, 0]}>
-            <planeGeometry args={[1.48, 1.48]} />
-            <meshStandardMaterial
-              map={dogTexture}
-              transparent
-              alphaTest={0.25}
-              roughness={0.32}
-              metalness={0}
-            />
-          </mesh>
+        {/* Suspended Pixel Dog Head ONLY (no white disc — pure crystal floating charm) */}
+        <group ref={coreGroupRef} position={[0, -0.02, 0.04]}>
+          {[-0.024, 0, 0.024].map((zOffset) => (
+            <mesh key={zOffset} position={[0, 0, zOffset]}>
+              <planeGeometry args={[1.66, 1.66]} />
+              <meshStandardMaterial
+                map={dogTexture}
+                transparent
+                alphaTest={0.25}
+                roughness={0.3}
+                metalness={0}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          ))}
         </group>
 
-        {/* Tiny suspended micro-bubbles inside the jelly volume */}
+        {/* Glistening micro-bubbles trapped inside the fruit jelly */}
         <group ref={bubblesGroupRef}>
           {BUBBLE_SPECS.map((bubble, idx) => (
             <mesh key={idx} position={bubble.pos}>
@@ -795,15 +831,15 @@ export function JellyScene({
               <meshStandardMaterial
                 color="#ffffff"
                 emissive="#ffffff"
-                emissiveIntensity={0.45}
-                roughness={0.05}
-                metalness={0.1}
+                emissiveIntensity={0.55}
+                roughness={0.04}
+                metalness={0.05}
               />
             </mesh>
           ))}
         </group>
 
-        {/* Outer Crystal-Clear Deformable Jelly Shell */}
+        {/* Outer Crystal-Clear Molded Fruit Jelly Shell */}
         <mesh
           ref={jellyMeshRef}
           geometry={jellyGeometry}

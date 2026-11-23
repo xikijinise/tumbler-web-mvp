@@ -108,7 +108,7 @@ export default function Home() {
   );
   const [settings, setSettings] = useState<TumblerSettings>({
     sayings: [...DEFAULT_SAYINGS],
-    flavor: "classic",
+    flavor: "strawberry",
     softness: "jelly",
     soundEnabled: true,
   });
