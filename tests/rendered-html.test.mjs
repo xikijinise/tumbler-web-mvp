@@ -23,150 +23,63 @@ async function render() {
   );
 }
 
-test("server-renders the jelly tumbler experiment", async () => {
+test("server-renders the overhauled 3D jelly tumbler", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>果冻不倒翁互动实验 · MVP<\/title>/i);
+  assert.match(html, /<title>果冻不倒翁 · 3D 软体互动<\/title>/i);
   assert.match(html, /果冻不倒翁/);
-  assert.match(html, /互动实验/);
-  assert.doesNotMatch(html, /ROLY-POLY \/ TEST 02/);
-  assert.match(html, /操作说明/);
-  assert.match(html, /动作回放/);
-  assert.match(html, /等等就好了/);
+  assert.match(html, /全站已戳/);
+  assert.match(html, /软糯布丁/);
+  assert.match(html, /Q弹果冻/);
+  assert.match(html, /紧实软糖/);
   assert.match(html, /自动/);
-  assert.match(html, /全站历史/);
-  assert.match(html, /LIVE \/ JELLY PHYSICS/);
-  assert.match(html, /three-stage/);
-  assert.doesNotMatch(html, /board-crosshair|impact-rings|ground-marker/);
+  assert.match(html, /设置/);
   assert.match(html, /role="application"/);
-  assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/i);
 });
 
-test("keeps the interaction model in the MVP source", async () => {
-  const [page, scene, layout, css, packageJson] = await Promise.all([
+test("uses custom soft-body spring physics, GLSL shader, and suspended pixel dog core", async () => {
+  const [page, scene, physics, flavors, audio, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/tumbler-scene.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/jelly/JellyScene.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/jelly/physics.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/jelly/flavors.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/jelly/audio.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /onPointerDown/);
-  assert.match(page, /onPointerMove/);
-  assert.match(page, /onPointerUp/);
-  assert.match(page, /button, input, textarea, label/);
-  assert.match(page, /onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
-  assert.match(page, /event\.code === "Space"/);
-  assert.match(page, /setHelpOpen/);
-  assert.match(page, /settingsOpen/);
-  assert.match(page, /settings-panel/);
-  assert.match(page, /SETTINGS_STORAGE_KEY/);
-  assert.match(page, /HISTORY_COUNT_STORAGE_KEY/);
-  assert.match(page, /SUPABASE_PROJECT_URL/);
-  assert.match(page, /get_input_count/);
-  assert.match(page, /increment_input_count/);
-  assert.match(page, /fetchGlobalInputCount/);
-  assert.match(page, /incrementGlobalInputCount/);
-  assert.doesNotMatch(page, /tumbler-real\.png|handleImageChange|IMAGE PARTS/);
-  assert.match(page, /autoEnabled/);
-  assert.match(page, /setAutoEnabled/);
-  assert.match(page, /模拟随机输入/);
-  assert.match(page, /three-fallback/);
-  assert.match(page, /drawFusedFallback/);
-  assert.match(page, /makeFusedDogCanvas/);
-  assert.match(page, /new Image\(\)/);
-  assert.match(page, /const useThree = canUseWebGL\(\)/);
-  assert.doesNotMatch(page, /isMobileRenderingEnvironment|pointer: coarse/);
-  assert.match(page, /lazy/);
-  assert.match(page, /import\("@react-three\/fiber"\)/);
-  assert.match(page, /Suspense/);
-  assert.match(page, /canUseWebGL/);
-  assert.match(page, /webglStatus/);
-  assert.match(page, /totalInputCount/);
-  assert.match(page, /recordInput/);
-  assert.match(page, /corner-footer/);
-  assert.doesNotMatch(page, /\bAI\b|OpenAI|核云|智能助手/i);
-  assert.match(page, /speechText/);
-  assert.match(page, /speechPosition/);
-  assert.match(page, /makeSpeechPosition/);
-  assert.match(page, /speech-\$\{speechPosition\.side\}/);
-  assert.match(page, /history\.slice\(0, 3\)/);
-  assert.match(page, /impact: 0/);
-  assert.match(page, /z: 0/);
-  assert.match(page, /physicsCommandQueueRef/);
-  assert.match(page, /type: "hit"/);
-  assert.match(page, /type: "release"/);
-  assert.match(page, /id: "forward"/);
-  assert.match(page, /key === "f"/);
-  assert.match(page, /INPUT_REPEAT_INTERVAL_MS/);
-  assert.match(page, /AUTO_RETURN_DELAY_MS/);
-  assert.match(page, /autoReturnArmedRef/);
-  assert.match(page, /自动归位/);
-  assert.match(page, /type: "return"/);
-  assert.match(page, /setInterval/);
-  assert.match(page, /addEventListener\("keyup"/);
-  assert.match(page, /pointerRepeatTimerRef/);
-  assert.match(page, /stopPointerRepeat/);
-  assert.doesNotMatch(page, /if \(event\.repeat\) return/);
-  assert.doesNotMatch(page, /impactFlash|flashTimeout|triggerFlash|is-flashing/);
-  assert.match(scene, /<Physics gravity=/);
-  assert.match(scene, /<RigidBody/);
-  assert.match(scene, /<BallCollider/);
-  assert.match(scene, /<CapsuleCollider/);
-  assert.match(scene, /function BoundaryWalls/);
-  assert.match(scene, /verticalCenter/);
-  assert.match(scene, /wallThickness/);
-  assert.match(scene, /SCREEN_DEPTH_MAX/);
-  assert.match(scene, /sideWallX/);
-  assert.match(scene, /frontWallZ/);
-  assert.match(scene, /ACTION_FORCE_GAIN/);
-  assert.match(scene, /jellyProfile/);
-  assert.match(scene, /custom-character\.png/);
-  assert.match(scene, /TextureLoader, "\.\/custom-character\.png"/);
-  assert.match(scene, /createFusedDogTexture/);
-  assert.match(scene, /DecalGeometry/);
-  assert.match(scene, /mergeGeometries/);
-  assert.match(scene, /combinedJellyGeometry/);
-  assert.match(scene, /<meshPhysicalMaterial/);
-  assert.match(scene, /transmission=/);
-  assert.match(scene, /visualGroupRef/);
-  assert.match(scene, /jellyMotion/);
-  assert.match(scene, /returningRef/);
-  assert.doesNotMatch(scene, /useImageTexture|FrontImage|planeGeometry|meshBasicMaterial|tumbler-real/);
-  assert.match(scene, /applyTorqueImpulse/);
-  assert.match(scene, /useFrame/);
-  assert.match(scene, /LatheGeometry/);
-  assert.match(scene, /uprightEuler/);
-  assert.doesNotMatch(scene, /\bAI\b|OpenAI|核云|智能助手/i);
-  assert.doesNotMatch(page, /board-crosshair|impact-rings|ground-marker|impact-wave|ROLY-POLY \/ TEST 02|brand-rule|board-texture|momentum-line/);
-  assert.match(css, /--paper:\s*#ffffff/);
-  assert.match(css, /\.experiment-board[\s\S]*background:[\s\S]*#fff/);
-  assert.match(css, /--lime:\s*#e58aa9/);
-  assert.match(css, /\.subject-zone::before/);
-  assert.doesNotMatch(css, /background:\s*#e9e8e0/);
-  assert.match(css, /\.subject-zone/);
-  assert.match(css, /\.subject-zone[\s\S]*inset:\s*0/);
-  assert.match(css, /perspective:\s*1100px/);
-  assert.match(css, /\.three-stage/);
-  assert.match(css, /\.three-stage > canvas/);
-  assert.match(css, /\.three-fallback/);
-  assert.doesNotMatch(css, /board-crosshair|impact-rings|ground-marker|impact-wave/);
-  assert.doesNotMatch(css, /is-flashing|filter:\s*brightness/);
-  assert.doesNotMatch(css, /\.telemetry-panel|\.action-grid|\.side-column/);
-  for (const key of ["left", "right", "uppercut", "stomp", "spin", "backhand", "forward", "super"]) {
-    assert.match(page, new RegExp(`id: "${key}"`));
-  }
+  // No Rapier dependency left
+  assert.doesNotMatch(packageJson, /@react-three\/rapier/);
+  assert.doesNotMatch(scene, /@react-three\/rapier|DecalGeometry/);
 
+  // GPU Shader + transmission + internal dog core
+  assert.match(scene, /onBeforeCompile/);
+  assert.match(scene, /deformJellyPos/);
+  assert.match(scene, /transmission:\s*0\.84/);
+  assert.match(scene, /transparent:\s*false/);
+  assert.match(scene, /custom-character\.png/);
+  assert.match(scene, /createStudioEnvironment/);
+  assert.match(scene, /handleJellyPointerDown/);
+
+  // Soft-body physics modes
+  assert.match(physics, /pokeJelly/);
+  assert.match(physics, /startGrabJelly/);
+  assert.match(physics, /moveGrabJelly/);
+  assert.match(physics, /endGrabJelly/);
+  assert.match(physics, /stepJellyPhysics/);
+
+  // Flavors, softness, audio, and UI wiring
+  assert.match(flavors, /JELLY_FLAVORS/);
+  assert.match(flavors, /SOFTNESS_PRESETS/);
+  assert.match(audio, /playPoke/);
+  assert.match(audio, /playRelease/);
+  assert.match(page, /ThreeJellyScene/);
+  assert.match(page, /JELLY_FLAVORS/);
+  assert.match(page, /SOFTNESS_PRESETS/);
   assert.match(layout, /lang="zh-CN"/);
-  assert.match(layout, /果冻不倒翁互动实验 · MVP/);
-  assert.doesNotMatch(page, /SkeletonPreview|react-loading-skeleton|codex-preview/);
-  assert.doesNotMatch(packageJson, /react-loading-skeleton/);
-  await access(new URL("../public/tumbler-real.png", import.meta.url));
+
   await access(new URL("../public/custom-character.png", import.meta.url));
-  await assert.rejects(
-    access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)),
-  );
 });

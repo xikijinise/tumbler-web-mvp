@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "果冻不倒翁互动实验 · MVP",
-  description: "用鼠标、键盘和拖拽测试一体化果冻不倒翁的受力、失衡与回正手感。",
+  title: "果冻不倒翁 · 3D 软体互动",
+  description: "晶莹 Q 弹的 3D 果冻不倒翁，内嵌悬浮像素狗头夹心，支持直接戳压、拉扯回弹、多口味与软硬度切换。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
